@@ -11,9 +11,9 @@ from joltio.esios.models import (
 )
 
 __all__ = [
-    "EsiosDataManager",
     "ColumnInfo",
     "DimensionResult",
+    "EsiosDataManager",
     "MetadataResult",
     "ProgramInfo",
     "QueryResult",

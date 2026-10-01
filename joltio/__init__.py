@@ -10,8 +10,8 @@ from joltio.exceptions import (
 )
 
 __all__ = [
-    "Client",
     "AuthenticationError",
+    "Client",
     "DatonsError",
     "JoltioError",
     "QueryError",

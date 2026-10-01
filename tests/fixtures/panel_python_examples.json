@@ -1,0 +1,22 @@
+[
+	{
+		"id": "data.python",
+		"code": "from joltio import Client\n\nj = Client()  # JOLTIO_API_KEY\ndf = j.data.query(\"SELECT max(datetime) FROM omie.prices WHERE datetime >= today() - 7\")"
+	},
+	{
+		"id": "access.python",
+		"code": "from joltio import Client\n\nj = Client()  # reads JOLTIO_API_KEY\ndf = j.data.query(\"SELECT max(datetime) FROM omie.prices WHERE datetime >= today() - 7\")\nprint(df)"
+	},
+	{
+		"id": "access.pythonLogin",
+		"code": "from joltio import Client; print(Client().data.query('SELECT max(datetime) FROM omie.prices'))"
+	},
+	{
+		"id": "keyed.python",
+		"code": "from joltio import Client; print(Client().data.query('SELECT max(datetime) FROM omie.prices WHERE datetime >= today() - 7'))"
+	},
+	{
+		"id": "quickstart",
+		"code": "from dotenv import find_dotenv, load_dotenv\nfrom joltio import Client\n\n# Looks for .env from the folder you run in; plain load_dotenv() fails outside a normal script.\nload_dotenv(find_dotenv(usecwd=True))  # JOLTIO_API_KEY (and SSL_CERT_FILE, if set)\nj = Client()\n\ndf = j.data.query(\"\"\"\nSELECT toDate(datetime) AS day, round(avg(price), 2) AS avg_price\nFROM (\n  SELECT datetime, argMax(price, inserted_at) AS price\n  FROM omie.prices\n  WHERE country = 'ES' AND program = 'PDBF' AND datetime >= today() - 7\n  GROUP BY datetime\n)\nGROUP BY day\nORDER BY day\n\"\"\")\ndf\n\ndf = j.data.query(\"\"\"\nSELECT 'intraday' AS series, if(source = 'continuous', 'continuous', 'pdbf') AS label, datetime, value\nFROM (\n  SELECT 'continuous' AS source, datetime, round(argMax(price, inserted_at), 2) AS value\n  FROM omie.continuous_prices\n  WHERE country = 'ES' AND round = 0\n    AND toDate(datetime) = (SELECT max(toDate(datetime)) FROM omie.continuous_prices WHERE country = 'ES' AND round = 0 AND datetime >= today() - 3)\n  GROUP BY datetime\n  UNION ALL\n  SELECT 'pdbf' AS source, datetime, round(argMax(price, inserted_at), 2) AS value\n  FROM omie.prices\n  WHERE country = 'ES' AND program = 'PDBF'\n    AND toDate(datetime) = (SELECT max(toDate(datetime)) FROM omie.continuous_prices WHERE country = 'ES' AND round = 0 AND datetime >= today() - 3)\n  GROUP BY datetime\n)\n\"\"\")\ndf\n\ndf = j.data.query(\"\"\"\nSELECT 'generation' AS series,\n  multiIf(indicator_id = 4, 'nuclear', indicator_id IN (3, 10064), 'hydro', indicator_id IN (12, 13), 'wind', indicator_id = 14, 'solar_pv', indicator_id = 15, 'solar_thermal', indicator_id = 9, 'ccgt', indicator_id = 10086, 'cogeneration', 'other') AS label,\n  datetime, round(sum(mwh) * 4, 0) AS value\nFROM (\n  SELECT indicator_id, datetime, argMax(value, inserted_at) AS mwh\n  FROM esios.indicators\n  WHERE indicator_id IN (3, 4, 9, 12, 13, 14, 15, 20, 21, 22, 23, 24, 10064, 10086) AND geo_id = 8741\n    AND toDate(datetime) = (SELECT max(toDate(datetime)) FROM esios.indicators WHERE indicator_id = 4 AND geo_id = 8741 AND datetime >= today() - 1)\n  GROUP BY indicator_id, datetime\n)\nGROUP BY label, datetime\n\"\"\")\ndf\n\ndf = j.data.query(\"\"\"\nSELECT 'demand' AS series, if(indicator_id = 1293, 'real', 'forecast') AS label, toStartOfFifteenMinutes(datetime) AS datetime, round(avg(mw), 0) AS value\nFROM (\n  SELECT indicator_id, datetime, argMax(value, inserted_at) AS mw\n  FROM esios.indicators\n  WHERE indicator_id IN (1293, 544) AND geo_id = 8741 AND toDate(datetime) = today()\n  GROUP BY indicator_id, datetime\n)\nGROUP BY indicator_id, datetime\n\"\"\")\ndf\n\ndf = j.data.query(\"\"\"\nSELECT toDate(datetime) AS day, count() AS row_count\nFROM esios.archives_i90\nWHERE datetime >= '2024-03-01' AND datetime < '2024-03-03'\nGROUP BY day\nORDER BY day\n\"\"\")\ndf"
+	}
+]

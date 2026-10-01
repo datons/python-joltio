@@ -179,7 +179,7 @@ class EsiosDataManager:
         try:
             data = self._client.get(f"{API_PREFIX}/health")
             return data.get("status") == "ok"
-        except Exception:
+        except Exception:  # noqa: BLE001
             return False
 
     def coverage(self, table: str | None = None) -> list[dict]:
@@ -228,7 +228,7 @@ class EsiosDataManager:
             if "datetime" in col.type.lower() or "date" in col.type.lower():
                 try:
                     df[col.name] = pd.to_datetime(df[col.name])
-                except Exception:
+                except Exception:  # noqa: BLE001, S110
                     pass
 
         return df

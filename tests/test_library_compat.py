@@ -1,5 +1,7 @@
 import httpx
+
 from joltio import Client
+
 
 def test_member_credentials_and_api_paths(monkeypatch):
     monkeypatch.setenv('JOLTIO_API_KEY', 'jol_live_test')

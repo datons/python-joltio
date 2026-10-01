@@ -1,0 +1,2101 @@
+{
+  "components": {
+    "schemas": {
+      "DataWindow": {
+        "properties": {
+          "latest_data": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Most recent data available in this table (YYYY-MM-DD). null = no delivery-period measurement",
+            "title": "Latest Data"
+          },
+          "your_window_start": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Earliest date you can query (YYYY-MM-DD). null = full history",
+            "title": "Your Window Start"
+          }
+        },
+        "required": [
+          "latest_data",
+          "your_window_start"
+        ],
+        "title": "DataWindow",
+        "type": "object"
+      },
+      "GettingStarted": {
+        "description": "Always-on nudge with high-leverage indicator IDs + recipe pointers.\n\nReduces the 'vague search' onboarding pattern we observed in the\nanalytics layer (users doing 30+ free-text searches before finding\nthe right ESIOS indicator). Same content for everyone; cheap fixed\npayload regardless of tier.",
+        "properties": {
+          "examples": {
+            "description": "First-call templates for common analyses; replace date placeholders with your data window.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Examples",
+            "type": "array"
+          },
+          "quick_indicators": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "description": "Most-asked ESIOS indicator IDs by topic. Pass to indicatorTimeSeries (GraphQL) or `SELECT … FROM esios.indicators WHERE indicator_id = …`.",
+            "title": "Quick Indicators",
+            "type": "object"
+          },
+          "recipes_hint": {
+            "description": "One-line pointer to vetted query recipes. Saves writing SQL.",
+            "title": "Recipes Hint",
+            "type": "string"
+          }
+        },
+        "required": [
+          "quick_indicators",
+          "recipes_hint",
+          "examples"
+        ],
+        "title": "GettingStarted",
+        "type": "object"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "title": "Detail",
+            "type": "array"
+          }
+        },
+        "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "KeyCreate": {
+        "properties": {
+          "name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "KeyCreate",
+        "type": "object"
+      },
+      "QueryRequest": {
+        "description": "Read-only query request — SQL (ClickHouse) XOR GraphQL (PG entities).",
+        "properties": {
+          "graphql": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "GraphQL document to execute instead of SQL — typed entity navigation with nested relationship traversal (units → company → group, installations, nodes; PG-backed). Mutually exclusive with `sql`. Introspection (__schema) costs 0.",
+            "title": "Graphql"
+          },
+          "limit": {
+            "anyOf": [
+              {
+                "maximum": 100000.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Max rows to return. Capped by server policy: 50 for raw queries, 10000 for aggregated.",
+            "title": "Limit"
+          },
+          "sql": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "SQL to execute on ClickHouse (read-only). For analytics: aggregations, pivots, time-series.",
+            "title": "Sql"
+          },
+          "variables": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "GraphQL variables (only with `graphql`).",
+            "title": "Variables"
+          }
+        },
+        "title": "QueryRequest",
+        "type": "object"
+      },
+      "ReingestRequest": {
+        "properties": {
+          "date_from": {
+            "format": "date",
+            "title": "Date From",
+            "type": "string"
+          },
+          "date_to": {
+            "format": "date",
+            "title": "Date To",
+            "type": "string"
+          },
+          "indicators": {
+            "items": {
+              "type": "integer"
+            },
+            "maxItems": 20,
+            "minItems": 1,
+            "title": "Indicators",
+            "type": "array"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          }
+        },
+        "required": [
+          "indicators",
+          "date_from",
+          "date_to"
+        ],
+        "title": "ReingestRequest",
+        "type": "object"
+      },
+      "SearchFacetsBody": {
+        "properties": {
+          "domain": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Filter domain. Omit entirely → list every domain (free orientation).",
+            "title": "Domain"
+          },
+          "facets": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Lucene-like filter string. Empty → no facet filter.",
+            "examples": [
+              "technology:Eólica AND min_mw:50"
+            ],
+            "title": "Facets"
+          },
+          "intent": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "One-sentence summary of what you're trying to answer. Logged for analytics.",
+            "title": "Intent"
+          },
+          "limit": {
+            "default": 50,
+            "maximum": 1000.0,
+            "minimum": 1.0,
+            "title": "Limit",
+            "type": "integer"
+          },
+          "offset": {
+            "default": 0,
+            "minimum": 0.0,
+            "title": "Offset",
+            "type": "integer"
+          },
+          "q": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Free-text search applied across the domain's search_text_columns.",
+            "examples": [
+              "Aguayo"
+            ],
+            "title": "Q"
+          },
+          "values_of": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Discovery mode: list of facet keys or column names to enumerate distinct values for (with row counts) instead of returning rows. Without facets/q it serves from a daily cache at 0 credits; with facets/q it computes live values *within* that filter.",
+            "examples": [
+              [
+                "program",
+                "sign"
+              ]
+            ],
+            "title": "Values Of"
+          }
+        },
+        "title": "SearchFacetsBody",
+        "type": "object"
+      },
+      "SeatMove": {
+        "properties": {
+          "confirmed": {
+            "title": "Confirmed",
+            "type": "boolean"
+          },
+          "previous_ln_id": {
+            "format": "uuid",
+            "title": "Previous Ln Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "previous_ln_id",
+          "confirmed"
+        ],
+        "title": "SeatMove",
+        "type": "object"
+      },
+      "TierInfoResponse": {
+        "properties": {
+          "available_tables": {
+            "description": "Tables you can query",
+            "items": {
+              "type": "string"
+            },
+            "title": "Available Tables",
+            "type": "array"
+          },
+          "display_name": {
+            "description": "Human-readable access level name",
+            "title": "Display Name",
+            "type": "string"
+          },
+          "freshness": {
+            "description": "Current freshness badges for the high-leverage indicator set. Show stale or refreshing badges to the user.",
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Freshness",
+            "type": "array"
+          },
+          "getting_started": {
+            "$ref": "#/components/schemas/GettingStarted",
+            "description": "High-leverage starting points — indicator IDs + recipe pointers."
+          },
+          "locale": {
+            "description": "Effective response language",
+            "enum": [
+              "en",
+              "es"
+            ],
+            "title": "Locale",
+            "type": "string"
+          },
+          "query_limits": {
+            "$ref": "#/components/schemas/TierQueryLimits"
+          },
+          "rate_limits": {
+            "$ref": "#/components/schemas/TierRateLimits"
+          },
+          "restrictions": {
+            "$ref": "#/components/schemas/TierRestrictions"
+          },
+          "supported_locales": {
+            "description": "Languages accepted by guide and describe",
+            "items": {
+              "type": "string"
+            },
+            "title": "Supported Locales",
+            "type": "array"
+          },
+          "tier": {
+            "description": "Your current access level",
+            "title": "Tier",
+            "type": "string"
+          },
+          "web_links": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Pages on joltio.app for this account: API keys, usage and the table catalog. Offer them when the user wants to manage keys or check data on the web.",
+            "title": "Web Links",
+            "type": "object"
+          }
+        },
+        "required": [
+          "tier",
+          "locale",
+          "supported_locales",
+          "display_name",
+          "rate_limits",
+          "query_limits",
+          "restrictions",
+          "available_tables",
+          "getting_started",
+          "freshness"
+        ],
+        "title": "TierInfoResponse",
+        "type": "object"
+      },
+      "TierQueryLimits": {
+        "properties": {
+          "execution_timeout_seconds": {
+            "description": "Query execution timeout",
+            "title": "Execution Timeout Seconds",
+            "type": "integer"
+          },
+          "rows_per_query_agg": {
+            "description": "Max rows for aggregated queries",
+            "title": "Rows Per Query Agg",
+            "type": "integer"
+          },
+          "rows_per_query_raw": {
+            "description": "Max rows for non-aggregated queries",
+            "title": "Rows Per Query Raw",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "rows_per_query_raw",
+          "rows_per_query_agg",
+          "execution_timeout_seconds"
+        ],
+        "title": "TierQueryLimits",
+        "type": "object"
+      },
+      "TierRateLimits": {
+        "properties": {
+          "queries_per_day": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Max queries per day. null = unlimited",
+            "title": "Queries Per Day"
+          },
+          "requests_per_minute": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Max requests per minute. null = unlimited",
+            "title": "Requests Per Minute"
+          },
+          "rows_per_day": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Max total rows returned per day. null = unlimited",
+            "title": "Rows Per Day"
+          }
+        },
+        "required": [
+          "queries_per_day",
+          "rows_per_day",
+          "requests_per_minute"
+        ],
+        "title": "TierRateLimits",
+        "type": "object"
+      },
+      "TierRestrictions": {
+        "properties": {
+          "data_windows": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/DataWindow"
+            },
+            "description": "Per-table date windows showing latest available data and your allowed query range",
+            "title": "Data Windows",
+            "type": "object"
+          },
+          "history_months": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "History window in months from latest data. null = full history",
+            "title": "History Months"
+          },
+          "i90_agg_level": {
+            "description": "Granularity tier for esios.archives_i90 aggregations. 'coarse' = only technology/program/zone/geo/time-buckets. 'granular' = also unit/company_name/market_participant. 'raw' = SELECT * allowed.",
+            "enum": [
+              "coarse",
+              "granular",
+              "raw"
+            ],
+            "title": "I90 Agg Level",
+            "type": "string"
+          },
+          "i90_granular_agg": {
+            "description": "Backward-compat alias: true when i90_agg_level in ('granular', 'raw')",
+            "title": "I90 Granular Agg",
+            "type": "boolean"
+          },
+          "i90_raw_data": {
+            "description": "Can query esios.archives_i90 without aggregation (SELECT *)",
+            "title": "I90 Raw Data",
+            "type": "boolean"
+          },
+          "i90_showcase_units": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unit codes the user may filter esios.archives_i90 by when granular aggregations are restricted. null when i90_granular_agg is true (all units accessible).",
+            "title": "I90 Showcase Units"
+          }
+        },
+        "required": [
+          "history_months",
+          "i90_raw_data",
+          "i90_agg_level",
+          "i90_granular_agg",
+          "data_windows"
+        ],
+        "title": "TierRestrictions",
+        "type": "object"
+      },
+      "ValidationError": {
+        "properties": {
+          "ctx": {
+            "title": "Context",
+            "type": "object"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Location",
+            "type": "array"
+          },
+          "msg": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError",
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "title": "Joltio Data",
+    "version": "0.1.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/archives/i90/query": {
+      "post": {
+        "deprecated": true,
+        "description": "Execute a read-only query — you write it, in the language that fits.\n\nTWO DIALECTS (mutually exclusive):\n- `sql` → ClickHouse analytics: aggregations, pivots, window functions,\n  time-series. Use for \"compute numbers\".\n- `graphql` (+ optional `variables`) → typed entity navigation with\n  nested relationship traversal over PG (units, companies, groups,\n  installations, nodes). Use for \"walk the entity graph\". Introspection\n  (__schema) is free; pre-flight cost with first: 1 reading extensions.cost.\n\nDo not assume table names. Call `my_status()` for your plan and date windows, `describe()` for current columns, and `guide(topic='dialects')` for dialect traps.\nFilter by a time range inside your window and by geography or program when relevant. Prefer aggregated results.\nQuery responses include freshness badges for explicit indicator IDs; disclose stale data when citing a result.",
+        "operationId": "run_query_archives_i90_query_post",
+        "parameters": [
+          {
+            "description": "full (default, REST-compat) keeps every cell. MCP: view=summary truncates long string cells to 120 chars.",
+            "in": "query",
+            "name": "view",
+            "required": false,
+            "schema": {
+              "default": "full",
+              "description": "full (default, REST-compat) keeps every cell. MCP: view=summary truncates long string cells to 120 chars.",
+              "enum": [
+                "summary",
+                "full"
+              ],
+              "title": "View",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Output format. REST defaults to json. For large tabular results prefer csv (most compact on wire) or toon (compact + type-safe). markdown for a readable table.",
+            "in": "query",
+            "name": "format",
+            "required": false,
+            "schema": {
+              "default": "json",
+              "description": "Output format. REST defaults to json. For large tabular results prefer csv (most compact on wire) or toon (compact + type-safe). markdown for a readable table.",
+              "enum": [
+                "json",
+                "markdown",
+                "toon",
+                "csv"
+              ],
+              "title": "Format",
+              "type": "string"
+            }
+          },
+          {
+            "description": "One-sentence summary of what you're trying to answer with this call. Logged for analytics.",
+            "in": "query",
+            "name": "intent",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "One-sentence summary of what you're trying to answer with this call. Logged for analytics.",
+              "title": "Intent"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QueryRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Run Query",
+        "tags": [
+          "query"
+        ]
+      }
+    },
+    "/coverage": {
+      "get": {
+        "description": "Current table and per-program bounds, rows, ingestion and freshness. Free; cached for five minutes.",
+        "operationId": "get_coverage_coverage_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "table",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Table"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "additionalProperties": true,
+                    "type": "object"
+                  },
+                  "title": "Response Get Coverage Coverage Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Coverage",
+        "tags": [
+          "coverage"
+        ]
+      }
+    },
+    "/describe": {
+      "get": {
+        "description": "DEPRECATED alias — use `search` (same payloads, one tool).\n\n`search()` with no args → list every domain. `search(domain=X)` with\nno q/facets/values_of → facets + columns + backend metadata. This\nendpoint stays for clients with cached tool lists; it will be removed\nonce its usage drops to zero in mcps.events.",
+        "operationId": "describe_describe_get",
+        "parameters": [
+          {
+            "description": "Domain name. Omit to list all.",
+            "in": "query",
+            "name": "domain",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Domain name. Omit to list all.",
+              "title": "Domain"
+            }
+          },
+          {
+            "in": "query",
+            "name": "format",
+            "required": false,
+            "schema": {
+              "default": "json",
+              "pattern": "^(json|markdown|toon)$",
+              "title": "Format",
+              "type": "string"
+            }
+          },
+          {
+            "description": "One-sentence summary of what you're trying to answer. Logged for analytics.",
+            "in": "query",
+            "name": "intent",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "One-sentence summary of what you're trying to answer. Logged for analytics.",
+              "title": "Intent"
+            }
+          },
+          {
+            "in": "query",
+            "name": "lang",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "pattern": "^(en|es)$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Lang"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Describe",
+        "tags": [
+          "filters"
+        ]
+      }
+    },
+    "/graphql": {
+      "post": {
+        "description": "Single GraphQL endpoint over PG entities + CH time-series.",
+        "operationId": "graphql_endpoint_graphql_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Graphql Endpoint",
+        "tags": [
+          "graphql"
+        ]
+      }
+    },
+    "/guide": {
+      "get": {
+        "description": "List guide topics or read one topic for your plan. This call costs zero credits.",
+        "operationId": "get_guide_guide_get",
+        "parameters": [
+          {
+            "description": "Topic name. Omit for the index.",
+            "in": "query",
+            "name": "topic",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Topic name. Omit for the index.",
+              "title": "Topic"
+            }
+          },
+          {
+            "in": "query",
+            "name": "format",
+            "required": false,
+            "schema": {
+              "default": "markdown",
+              "pattern": "^(markdown|json)$",
+              "title": "Format",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "lang",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "pattern": "^(en|es)$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Lang"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Guide",
+        "tags": [
+          "guide"
+        ]
+      }
+    },
+    "/health": {
+      "get": {
+        "operationId": "health_health_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Health"
+      }
+    },
+    "/indicators": {
+      "get": {
+        "operationId": "list_indicators_indicators_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Indicators",
+        "tags": [
+          "indicators"
+        ]
+      }
+    },
+    "/indicators/{indicator_id}": {
+      "get": {
+        "operationId": "indicator_detail_indicators__indicator_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "indicator_id",
+            "required": true,
+            "schema": {
+              "title": "Indicator Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Indicator Detail",
+        "tags": [
+          "indicators"
+        ]
+      }
+    },
+    "/knowledge": {
+      "get": {
+        "description": "List knowledge entries — caveats AND sector domain context.\n\nSingle unified catalog. `kind` discriminates:\n  - caveat: data anomalies, expected drifts\n  - market_phase: PDBF, PDVP, P48, intraday\n  - service: BS, BT, RR, RTR, BS_ENERGY\n  - entity: UF, UP, SM, BRP\n  - settlement: A1..C7 cycles, compodem components, COEF_K\n  - concept: BSP migration, MTU 15min, SSAA\n  - program: I90 program definitions (PHF1..7 cascade, etc.)\n  - glossary: free-form definitions\n\nBy default content_md is NOT included to save tokens. Pass include_content=true\nto fetch the long-form markdown for each entry.",
+        "operationId": "list_knowledge_knowledge_get",
+        "parameters": [
+          {
+            "description": "Filter by kind (caveat|market_phase|service|entity|settlement|program|concept|glossary)",
+            "in": "query",
+            "name": "kind",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by kind (caveat|market_phase|service|entity|settlement|program|concept|glossary)",
+              "title": "Kind"
+            }
+          },
+          {
+            "description": "Filter by scope (concept|program|recipe|column|table|process|market_phase|service|entity|settlement|glossary)",
+            "in": "query",
+            "name": "scope",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by scope (concept|program|recipe|column|table|process|market_phase|service|entity|settlement|glossary)",
+              "title": "Scope"
+            }
+          },
+          {
+            "description": "Filter by scope_ref (e.g. 'BS3', 'OFFER_RTR', 'UF')",
+            "in": "query",
+            "name": "scope_ref",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by scope_ref (e.g. 'BS3', 'OFFER_RTR', 'UF')",
+              "title": "Scope Ref"
+            }
+          },
+          {
+            "description": "Filter to entries with this program in related_programs (e.g. 'BS')",
+            "in": "query",
+            "name": "program",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter to entries with this program in related_programs (e.g. 'BS')",
+              "title": "Program"
+            }
+          },
+          {
+            "description": "Filter to entries with this table in related_tables (e.g. 'archives_i90.bs')",
+            "in": "query",
+            "name": "table",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter to entries with this table in related_tables (e.g. 'archives_i90.bs')",
+              "title": "Table"
+            }
+          },
+          {
+            "description": "(caveats only) info|warning|error",
+            "in": "query",
+            "name": "severity",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "(caveats only) info|warning|error",
+              "title": "Severity"
+            }
+          },
+          {
+            "description": "(caveats only) documented|pending|wontfix|mitigated",
+            "in": "query",
+            "name": "mitigation_status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "(caveats only) documented|pending|wontfix|mitigated",
+              "title": "Mitigation Status"
+            }
+          },
+          {
+            "description": "Include long-form content_md (off by default for token economy)",
+            "in": "query",
+            "name": "include_content",
+            "required": false,
+            "schema": {
+              "default": false,
+              "description": "Include long-form content_md (off by default for token economy)",
+              "title": "Include Content",
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "format",
+            "required": false,
+            "schema": {
+              "default": "json",
+              "title": "Format",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Knowledge",
+        "tags": [
+          "recipes"
+        ]
+      }
+    },
+    "/manage/keys": {
+      "get": {
+        "operationId": "keys_manage_keys_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Keys",
+        "tags": [
+          "data-management"
+        ]
+      },
+      "post": {
+        "operationId": "new_key_manage_keys_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KeyCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "New Key",
+        "tags": [
+          "data-management"
+        ]
+      }
+    },
+    "/manage/keys/{key_id}": {
+      "delete": {
+        "operationId": "revoke_key_manage_keys__key_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "key_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Key Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Revoke Key",
+        "tags": [
+          "data-management"
+        ]
+      }
+    },
+    "/manage/members/{user_id}/move-seat": {
+      "post": {
+        "operationId": "move_seat_manage_members__user_id__move_seat_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "User Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SeatMove"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Move Seat",
+        "tags": [
+          "data-management"
+        ]
+      }
+    },
+    "/manage/plan": {
+      "get": {
+        "operationId": "plan_manage_plan_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Plan",
+        "tags": [
+          "data-management"
+        ]
+      }
+    },
+    "/manage/reingests": {
+      "get": {
+        "operationId": "my_reingests_manage_reingests_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "My Reingests",
+        "tags": [
+          "revisions"
+        ]
+      },
+      "post": {
+        "operationId": "request_reingest_manage_reingests_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReingestRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Request Reingest",
+        "tags": [
+          "revisions"
+        ]
+      }
+    },
+    "/manage/usage": {
+      "get": {
+        "operationId": "usage_manage_usage_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "month",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Month"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Usage",
+        "tags": [
+          "data-management"
+        ]
+      }
+    },
+    "/query": {
+      "post": {
+        "description": "Execute a read-only query — you write it, in the language that fits.\n\nTWO DIALECTS (mutually exclusive):\n- `sql` → ClickHouse analytics: aggregations, pivots, window functions,\n  time-series. Use for \"compute numbers\".\n- `graphql` (+ optional `variables`) → typed entity navigation with\n  nested relationship traversal over PG (units, companies, groups,\n  installations, nodes). Use for \"walk the entity graph\". Introspection\n  (__schema) is free; pre-flight cost with first: 1 reading extensions.cost.\n\nDo not assume table names. Call `my_status()` for your plan and date windows, `describe()` for current columns, and `guide(topic='dialects')` for dialect traps.\nFilter by a time range inside your window and by geography or program when relevant. Prefer aggregated results.\nQuery responses include freshness badges for explicit indicator IDs; disclose stale data when citing a result.",
+        "operationId": "run_query_query_post",
+        "parameters": [
+          {
+            "description": "full (default, REST-compat) keeps every cell. MCP: view=summary truncates long string cells to 120 chars.",
+            "in": "query",
+            "name": "view",
+            "required": false,
+            "schema": {
+              "default": "full",
+              "description": "full (default, REST-compat) keeps every cell. MCP: view=summary truncates long string cells to 120 chars.",
+              "enum": [
+                "summary",
+                "full"
+              ],
+              "title": "View",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Output format. REST defaults to json. For large tabular results prefer csv (most compact on wire) or toon (compact + type-safe). markdown for a readable table.",
+            "in": "query",
+            "name": "format",
+            "required": false,
+            "schema": {
+              "default": "json",
+              "description": "Output format. REST defaults to json. For large tabular results prefer csv (most compact on wire) or toon (compact + type-safe). markdown for a readable table.",
+              "enum": [
+                "json",
+                "markdown",
+                "toon",
+                "csv"
+              ],
+              "title": "Format",
+              "type": "string"
+            }
+          },
+          {
+            "description": "One-sentence summary of what you're trying to answer with this call. Logged for analytics.",
+            "in": "query",
+            "name": "intent",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "One-sentence summary of what you're trying to answer with this call. Logged for analytics.",
+              "title": "Intent"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QueryRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Run Query",
+        "tags": [
+          "query"
+        ]
+      }
+    },
+    "/recipes": {
+      "get": {
+        "description": "List available query recipes (with optional inline params schema).",
+        "operationId": "list_recipes_recipes_get",
+        "parameters": [
+          {
+            "description": "Filter to recipes carrying any of these tags",
+            "in": "query",
+            "name": "tags",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter to recipes carrying any of these tags",
+              "title": "Tags"
+            }
+          },
+          {
+            "description": "Filter by backend (clickhouse|postgres)",
+            "in": "query",
+            "name": "backend",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by backend (clickhouse|postgres)",
+              "title": "Backend"
+            }
+          },
+          {
+            "description": "Include inactive recipes",
+            "in": "query",
+            "name": "is_active",
+            "required": false,
+            "schema": {
+              "default": true,
+              "description": "Include inactive recipes",
+              "title": "Is Active",
+              "type": "boolean"
+            }
+          },
+          {
+            "description": "summary (id+name+description+backend+cost_credits+tags) — REST default. full — adds parameters schema + example_params + sql_template inline so an LLM client gets everything to compose a recipes_run call in a single round-trip.",
+            "in": "query",
+            "name": "view",
+            "required": false,
+            "schema": {
+              "default": "summary",
+              "description": "summary (id+name+description+backend+cost_credits+tags) — REST default. full — adds parameters schema + example_params + sql_template inline so an LLM client gets everything to compose a recipes_run call in a single round-trip.",
+              "title": "View",
+              "type": "string"
+            }
+          },
+          {
+            "description": "json|markdown|csv|toon",
+            "in": "query",
+            "name": "format",
+            "required": false,
+            "schema": {
+              "default": "json",
+              "description": "json|markdown|csv|toon",
+              "title": "Format",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Recipes",
+        "tags": [
+          "recipes"
+        ]
+      }
+    },
+    "/recipes/{recipe_id}": {
+      "get": {
+        "description": "Describe one recipe: params schema, example invocation, BOE refs, cost.",
+        "operationId": "describe_recipe_recipes__recipe_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "recipe_id",
+            "required": true,
+            "schema": {
+              "title": "Recipe Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "format",
+            "required": false,
+            "schema": {
+              "default": "json",
+              "title": "Format",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Describe Recipe",
+        "tags": [
+          "recipes"
+        ]
+      }
+    },
+    "/recipes/{recipe_id}/run": {
+      "post": {
+        "description": "Execute a recipe with the supplied params. Returns the rows.\n\nBody is a JSON object with parameter values keyed by name (matching the\nrecipe's ``parameters`` schema). Params are validated against the schema\nbefore execution. The backend (CH or PG) is determined by the recipe.",
+        "operationId": "run_recipe_recipes__recipe_id__run_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "recipe_id",
+            "required": true,
+            "schema": {
+              "title": "Recipe Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "format",
+            "required": false,
+            "schema": {
+              "default": "json",
+              "title": "Format",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "title": "Params",
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Run Recipe",
+        "tags": [
+          "recipes"
+        ]
+      }
+    },
+    "/revisions": {
+      "get": {
+        "operationId": "revisions_revisions_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "indicator_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Indicator Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "date_from",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Date From"
+            }
+          },
+          {
+            "in": "query",
+            "name": "date_to",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Date To"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "include_first_loads",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Include First Loads",
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Revisions",
+        "tags": [
+          "revisions"
+        ]
+      }
+    },
+    "/revisions/indicators": {
+      "get": {
+        "operationId": "revision_indicators_revisions_indicators_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Revision Indicators",
+        "tags": [
+          "revisions"
+        ]
+      }
+    },
+    "/revisions/{revision_id}": {
+      "get": {
+        "operationId": "revision_summary_revisions__revision_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "revision_id",
+            "required": true,
+            "schema": {
+              "title": "Revision Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Revision Summary",
+        "tags": [
+          "revisions"
+        ]
+      }
+    },
+    "/revisions/{revision_id}/values": {
+      "get": {
+        "operationId": "revision_values_revisions__revision_id__values_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "revision_id",
+            "required": true,
+            "schema": {
+              "title": "Revision Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "format",
+            "required": false,
+            "schema": {
+              "default": "json",
+              "pattern": "^(json|csv|parquet)$",
+              "title": "Format",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 500,
+              "maximum": 10000,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Revision Values",
+        "tags": [
+          "revisions"
+        ]
+      }
+    },
+    "/search/facets": {
+      "post": {
+        "description": "Search with zoom levels — from free orientation down to rows.\n\n- no args                      → list every domain (0 credits)\n- domain only                  → that domain's facets + columns + schema (0 credits)\n- domain + values_of=[cols]    → distinct values per column with counts\n                                 (0 credits from daily cache; add facets/q\n                                 to compute live within a filter)\n- domain + q and/or facets     → matching rows (Lucene-like facet syntax;\n                                 PG domains are typo-tolerant on q)\n\nRule of thumb: search to find entities/ids/values, query to compute.",
+        "operationId": "search_with_facets_search_facets_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SearchFacetsBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Search With Facets",
+        "tags": [
+          "filters"
+        ]
+      }
+    },
+    "/tier-info": {
+      "get": {
+        "description": "Check your data access: available tables, date windows, and query limits.\n\nReturns the tables you can query, the date range available per table,\nrate limits, and query constraints. Use the `data_windows` in your\nWHERE datetime filters — querying outside them returns 403.",
+        "operationId": "get_tier_info_tier_info_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TierInfoResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Tier Info",
+        "tags": [
+          "tier"
+        ]
+      }
+    }
+  }
+}

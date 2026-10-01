@@ -5,11 +5,12 @@ Central entry point that lazily initializes product-specific managers.
 
 from __future__ import annotations
 
-import os
+from importlib.metadata import version
 from typing import Any
 
 import httpx
 
+from joltio.config import credential_headers
 from joltio.exceptions import AuthenticationError, DatonsError, QueryError, RateLimitError
 
 DEFAULT_BASE_URL = "https://api.joltio.app"
@@ -39,15 +40,16 @@ class Client:
         token: str | None = None,
         base_url: str = DEFAULT_BASE_URL,
         timeout: float = DEFAULT_TIMEOUT,
+        _allow_anonymous: bool = False,
+        _session_token: str | None = None,
     ):
-        self.token = api_key or token or os.getenv("JOLTIO_API_KEY") or os.getenv("DATONS_API_KEY")
-        if not self.token:
-            from joltio.config import read_api_key
-
-            self.token = read_api_key()
-        if not self.token:
+        self._explicit_credential = api_key is not None or token is not None
+        self._session_token = _session_token
+        headers = credential_headers(api_key=api_key, token=token, session_token=_session_token)
+        self.token = headers.get("X-API-Key") or headers.get("Authorization", "").removeprefix("Bearer ")
+        if not self.token and not _allow_anonymous:
             raise DatonsError(
-                "API key required. Pass api_key=, set JOLTIO_API_KEY, or run: joltio auth set <KEY>"
+                "Credentials required. Run joltio login, pass api_key=, or set JOLTIO_API_KEY."
             )
 
         self.base_url = base_url.rstrip("/")
@@ -56,8 +58,8 @@ class Client:
         self._http = httpx.Client(
             base_url=self.base_url,
             headers={
-                "X-API-Key": self.token,
-                "User-Agent": "python-joltio/0.1.0",
+                **headers,
+                "User-Agent": f"python-joltio/{version('joltio')}",
             },
             timeout=self.timeout,
         )
@@ -97,7 +99,7 @@ class Client:
     ) -> dict:
         """Execute an HTTP request with error handling."""
         try:
-            response = self._http.request(method, path, params=params, json=json)
+            response = self.request_response(method, path, params=params, json=json)
         except httpx.ConnectError as exc:
             raise DatonsError(f"Connection failed: {exc}") from exc
         except httpx.TimeoutException as exc:
@@ -111,7 +113,7 @@ class Client:
             try:
                 body = response.json()
                 detail = body.get("detail", body)
-            except Exception:
+            except ValueError:
                 detail = None
             tier = detail.get("tier") if isinstance(detail, dict) else None
             raise RateLimitError(
@@ -125,16 +127,31 @@ class Client:
 
         return response.json()
 
+    def _request_headers(self, extra: dict[str, str] | None = None) -> dict[str, str]:
+        if not self._explicit_credential:
+            self._http.headers.pop("X-API-Key", None)
+            self._http.headers.pop("Authorization", None)
+            self._http.headers.update(credential_headers(session_token=self._session_token))
+        return {**dict(self._http.headers), **(extra or {})}
+
+    def request_response(self, method: str, path: str, *, params: dict[str, Any] | None = None, json: Any = None, headers: dict[str, str] | None = None) -> httpx.Response:
+        """Petición HTTP cruda compartida con la CLI generada."""
+        return self._http.request(method, path, params=params, json=json, headers=self._request_headers(headers))
+
+    def stream_response(self, method: str, path: str, *, params: dict[str, Any] | None = None, json: Any = None, headers: dict[str, str] | None = None):
+        """Respuesta en streaming para exportaciones tabulares de la CLI."""
+        return self._http.stream(method, path, params=params, json=json, headers=self._request_headers(headers))
+
     # -- Lifecycle -------------------------------------------------------------
 
     def close(self) -> None:
         """Close the underlying HTTP connection."""
         self._http.close()
 
-    def __enter__(self) -> Client:
+    def __enter__(self) -> "Client":
         return self
 
-    def __exit__(self, *args: Any) -> None:
+    def __exit__(self, *args: object) -> None:
         self.close()
 
     def __repr__(self) -> str:
