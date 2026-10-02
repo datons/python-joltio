@@ -1,5 +1,10 @@
 # Cambios de `joltio`
 
+## 0.3.0
+
+- **Las columnas de fecha y hora conservan su zona horaria.** `data.query` devuelve cada `DateTime('Europe/Madrid')` como `Datetime(time_zone="Europe/Madrid")` en Polars y `datetime64[…, Europe/Madrid]` en pandas, con la hora de Madrid (23:45+02:00). Antes salía la hora en UTC sin zona (21:45), que se confundía con hora local, y en pandas los días de cambio de hora la columna quedaba como texto. La hora repetida al atrasar el reloj se distingue (02:30+02:00 y 02:30+01:00).
+- **Cambio de comportamiento:** una columna con zona no se compara con un `datetime` sin zona. Usa `datetime(2026, 10, 1, tzinfo=ZoneInfo("Europe/Madrid"))`, o `pl.col("datetime").dt.replace_time_zone(None)` si necesitas la hora local sin zona.
+
 ## 0.2.3
 
 - Los checksums del motor de apps viajan dentro del paquete publicado en PyPI y la CLI verifica la descarga solo contra ellos: manipular el CDN (binario y `SHA256SUMS` a la vez) ya no basta para ejecutar otro motor.

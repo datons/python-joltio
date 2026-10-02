@@ -9,6 +9,7 @@ Endpoints:
 
 from __future__ import annotations
 
+import re
 from typing import TYPE_CHECKING, Any, Literal
 
 import polars as pl
@@ -27,6 +28,15 @@ API_PREFIX = "/data"
 
 Backend = Literal["polars", "pandas"]
 
+
+
+_TIME_ZONE = re.compile(r"DateTime(?:64)?\((?:\s*\d+\s*,)?\s*'([^']+)'\s*\)")
+
+
+def _time_zone(column_type: str) -> str | None:
+    """Zona declarada en el tipo de ClickHouse: DateTime('Europe/Madrid') o DateTime64(3, 'Europe/Madrid'). Sin zona en el tipo, la columna se deja sin zona."""
+    match = _TIME_ZONE.search(column_type)
+    return match.group(1) if match else None
 
 class EsiosDataManager:
     """Manager for ESIOS preprocessed data.
@@ -192,11 +202,14 @@ class EsiosDataManager:
         """Convert a QueryResult to a Polars DataFrame."""
         col_names = [c.name for c in result.columns]
         schema: dict[str, pl.DataType] = {}
+        datetimes: dict[str, str | None] = {}
 
         for col in result.columns:
             col_type = col.type.lower()
             if "datetime" in col_type:
-                schema[col.name] = pl.Datetime("ms")
+                # Se lee como texto y se convierte abajo con la zona del tipo: con pl.Datetime sin zona, «23:45+02:00» acababa en 21:45 UTC sin zona.
+                schema[col.name] = pl.Utf8
+                datetimes[col.name] = _time_zone(col.type)
             elif "date" in col_type:
                 schema[col.name] = pl.Date
             elif "float" in col_type:
@@ -208,6 +221,8 @@ class EsiosDataManager:
 
         data = dict(zip(col_names, zip(*result.rows))) if result.rows else {c: [] for c in col_names}
         df = pl.DataFrame(data, schema=schema)
+        if datetimes:
+            df = df.with_columns(pl.col(name).str.to_datetime(time_unit="ms", time_zone=zone) for name, zone in datetimes.items())
         return df
 
     @staticmethod
@@ -225,11 +240,19 @@ class EsiosDataManager:
         df = pd.DataFrame(result.rows, columns=col_names)
 
         for col in result.columns:
-            if "datetime" in col.type.lower() or "date" in col.type.lower():
-                try:
-                    df[col.name] = pd.to_datetime(df[col.name])
-                except Exception:  # noqa: BLE001, S110
-                    pass
+            col_type = col.type.lower()
+            if "datetime" in col_type:
+                zone = _time_zone(col.type)
+                values = df[col.name]
+                if zone is None:
+                    df[col.name] = pd.to_datetime(values)
+                elif values.astype(str).str.contains(r"[+-]\d{2}:\d{2}$|Z$", regex=True).any():
+                    # Con desfase (p. ej. Europe/Madrid, que cambia de +02:00 a +01:00): se pasa por UTC y se lleva a la zona del tipo; sin utc=True, pandas dejaba texto en los días de cambio de hora.
+                    df[col.name] = pd.to_datetime(values, utc=True).dt.tz_convert(zone)
+                else:
+                    df[col.name] = pd.to_datetime(values).dt.tz_localize(zone)
+            elif "date" in col_type:
+                df[col.name] = pd.to_datetime(df[col.name])
 
         return df
 
