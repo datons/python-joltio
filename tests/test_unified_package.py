@@ -13,6 +13,7 @@ import httpx
 import pytest
 
 from joltio import Client, config
+from joltio.client import user_agent
 from joltio_toolkit.custom import artifacts, data
 from joltio_toolkit.http import CliError
 
@@ -83,12 +84,17 @@ def test_engine_download_checks_digest_before_execution(monkeypatch, tmp_path):
         def __exit__(self, *args):
             self.close()
 
-    def download(url, **kwargs):
-        return Response(f"{checksum}  {name}\n".encode() if url.endswith("SHA256SUMS") else binary)
+    agents = []
+
+    def download(request, **kwargs):
+        # Cloudflare responde 403 (error 1010) al User-Agent de urllib: cada descarga debe identificarse como joltio.
+        agents.append(request.get_header("User-agent"))
+        return Response(f"{checksum}  {name}\n".encode() if request.full_url.endswith("SHA256SUMS") else binary)
 
     monkeypatch.setattr(artifacts.urllib.request, "urlopen", download)
     target = Path(artifacts.resolve_engine()[0])
     assert target.read_bytes() == binary
+    assert agents == [user_agent(), user_agent()] and user_agent().startswith("python-joltio/")
     launched = []
     monkeypatch.setattr(artifacts.subprocess, "run", lambda argv, **kwargs: launched.append(argv) or SimpleNamespace(returncode=0))
     artifacts._delegate("init", [])

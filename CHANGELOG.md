@@ -1,5 +1,11 @@
 # Cambios de `joltio`
 
+## 0.2.1
+
+- `joltio mcp` expone también la Data API: `data_query` (SQL sobre el mercado), indicadores, recetas, revisiones y búsqueda por facetas, con la misma credencial y workspace. Lo que el backend ya ofrece como proxy de Data (claves, plan, uso, cobertura…) no se duplica. El servidor informa la versión de `joltio`.
+- `joltio artifacts …` descarga el motor con el User-Agent de `joltio`. Con 0.2.0 la descarga usaba el de urllib, que Cloudflare rechaza (403, error 1010), y la autoría de apps no funcionaba fuera del monorepo.
+- `joltio data query --format csv|parquet` escribe en stdout solo la tabla: la línea de metadatos `# row_count=…` que Data antepone al CSV pasa a stderr. Con 0.2.0, `--format csv > fichero.csv` dejaba esa línea dentro del fichero y Parquet la tomaba por la cabecera.
+
 ## 0.2.0
 
 - Un solo paquete incluye la librería Python 0.1.0 y la CLI generada del OpenAPI. `joltio-toolkit` deja de ser el nombre de distribución.

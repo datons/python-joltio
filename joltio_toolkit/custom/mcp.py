@@ -5,12 +5,15 @@ Misma fuente (el OpenAPI canónico) y mismos nombres de tool que el MCP del serv
 
 from __future__ import annotations
 
+from importlib.metadata import version
+
 import typer
 
 from joltio.config import credential_headers
-from joltio_toolkit.config import effective_workspace, load_session
+from joltio_toolkit.config import data_api_url, effective_workspace, load_session
+from joltio_toolkit.custom.data import data_api_operations
 from joltio_toolkit.http import CliError
-from joltio_toolkit.spec import load_spec
+from joltio_toolkit.spec import load_data_spec, load_spec
 
 # Mismas exclusiones que el MCP del servidor: nada público ni de infraestructura como tool de agente.
 _EXCLUDE_PATTERNS = (r"^/api/[^/]+/public/.*", r"^/health$", r"^/openapi\.json$")
@@ -39,11 +42,24 @@ def mcp() -> None:
         headers=headers,
         timeout=30.0,
     )
+    backend_spec = load_spec()
     server = FastMCP.from_openapi(
-        openapi_spec=load_spec(),
+        openapi_spec=backend_spec,
         client=client,
         name="joltio",
+        version=version("joltio"),
         route_maps=[RouteMap(pattern=pattern, mcp_type=MCPType.EXCLUDE) for pattern in _EXCLUDE_PATTERNS],
     )
+    # La Data API (consultas SQL, cobertura, indicadores…) es otro servicio con su propio OpenAPI: se monta con los mismos nombres que la CLI (`data_query`, `data_coverage_list`…) y la misma credencial y workspace.
+    data_spec = load_data_spec()
+    data_names = data_api_operations(data_spec, backend_spec)
+    data_server = FastMCP.from_openapi(
+        openapi_spec=data_spec,
+        client=httpx2.AsyncClient(base_url=data_api_url(), headers=headers, timeout=60.0),
+        name="joltio-data",
+        route_map_fn=lambda route, mcp_type: None if route.operation_id in data_names else MCPType.EXCLUDE,
+        mcp_names=data_names,
+    )
+    server.mount(data_server)
     typer.echo(f"Servidor MCP de Joltio (stdio) contra {session.api_url}", err=True)
     server.run()

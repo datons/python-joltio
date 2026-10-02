@@ -17,6 +17,11 @@ DEFAULT_BASE_URL = "https://api.joltio.app"
 DEFAULT_TIMEOUT = 30.0
 
 
+def user_agent() -> str:
+    """User-Agent de todo lo que `joltio` pide por HTTP. Cloudflare rechaza el de urllib (error 1010), así que ninguna descarga debe usar el suyo por defecto."""
+    return f"python-joltio/{version('joltio')}"
+
+
 class Client:
     """Client for Joltio Data APIs.
 
@@ -59,7 +64,7 @@ class Client:
             base_url=self.base_url,
             headers={
                 **headers,
-                "User-Agent": f"python-joltio/{version('joltio')}",
+                "User-Agent": user_agent(),
             },
             timeout=self.timeout,
         )

@@ -6,6 +6,7 @@ import json
 import sys
 import tempfile
 import zipfile
+from collections.abc import Iterable, Iterator
 from io import BytesIO
 from pathlib import Path
 from typing import Literal
@@ -17,6 +18,32 @@ from joltio import Client
 from joltio.config import credential_headers
 from joltio_toolkit import config, generate, spec
 from joltio_toolkit.http import CliError, emit
+
+METADATA_PREFIX = b"# row_count="
+
+
+def _data_without_metadata(chunks: Iterable[bytes]) -> Iterator[bytes]:
+    """Deja en stdout solo la tabla: la línea `# row_count=…` que Data antepone al CSV va a stderr.
+
+    Así `joltio data query … --format csv > fichero.csv` produce un CSV válido y Parquet no toma esa línea por la cabecera. El servidor la mantiene para quien lee con `comment='#'`. Solo se aparta esa línea de metadatos, nunca una cabecera que empiece por «#».
+    """
+    stream = iter(chunks)
+    head = b""
+    for chunk in stream:
+        head += chunk
+        if b"\n" in head or len(head) >= len(METADATA_PREFIX):
+            break
+    if head.startswith(METADATA_PREFIX):
+        while b"\n" not in head:
+            chunk = next(stream, None)
+            if chunk is None:
+                break
+            head += chunk
+        line, _, head = head.partition(b"\n")
+        sys.stderr.write(line.decode(errors="replace") + "\n")
+    if head:
+        yield head
+    yield from stream
 
 
 def query(sql: str, format: Literal["json", "csv", "parquet"] = typer.Option("json", "--format")) -> None:
@@ -31,7 +58,7 @@ def query(sql: str, format: Literal["json", "csv", "parquet"] = typer.Option("js
             if format == "json":
                 emit(json.loads(response.read()))
             elif format == "csv":
-                for chunk in response.iter_bytes():
+                for chunk in _data_without_metadata(response.iter_bytes()):
                     sys.stdout.buffer.write(chunk)
             else:
                 try:
@@ -41,7 +68,7 @@ def query(sql: str, format: Literal["json", "csv", "parquet"] = typer.Option("js
                     raise CliError('Para Parquet instala `joltio[parquet]`.') from exc
 
                 with tempfile.SpooledTemporaryFile(max_size=8 * 1024 * 1024) as source:
-                    for chunk in response.iter_bytes():
+                    for chunk in _data_without_metadata(response.iter_bytes()):
                         source.write(chunk)
                     source.seek(0)
                     reader = arrow_csv.open_csv(source)
@@ -135,6 +162,39 @@ def _command_parts(path: str, method: str) -> tuple[str, str]:
     return resource, verb
 
 
+# Rutas de Data que se exponen como comandos y como tools MCP; el resto (health, guía, GraphQL…) no.
+PUBLIC_DATA_PREFIXES = ("/coverage", "/indicators", "/manage/", "/recipes", "/revisions", "/search/", "/tier-info")
+
+
+def data_api_operations(data_spec: dict, backend_spec: dict | None = None) -> dict[str, str]:
+    """operationId de la Data API → nombre público `data_<recurso>_<verbo>`, el mismo para la CLI y para el MCP.
+
+    Las rutas de `/api/data/*` del backend son proxies finos de la Data API para el panel: si el backend ya ofrece una operación (mismo método y ruta, sin `/manage`) o el mismo nombre, se usa la del backend y aquí se omite, para que un agente no vea la misma acción dos veces.
+    """
+    backend_paths = frozenset()
+    taken: frozenset[str] = frozenset()
+    if backend_spec is not None:
+        backend_paths = frozenset((method, path.removeprefix("/api/data")) for path, methods in backend_spec.get("paths", {}).items() if path.startswith("/api/data/") for method in methods)
+        taken = frozenset(operation.get("operationId", "") for methods in backend_spec.get("paths", {}).values() for operation in methods.values() if isinstance(operation, dict))
+    names: dict[str, str] = {}
+    for path, methods in data_spec.get("paths", {}).items():
+        for method, operation in methods.items():
+            if method not in generate.HTTP_METHODS or not operation.get("operationId"):
+                continue
+            if path == "/query" and method == "post":
+                name = "data_query"
+            elif path.startswith(PUBLIC_DATA_PREFIXES):
+                resource, verb = _command_parts(path, method)
+                name = f"data_{resource}_{verb}".replace("-", "_")
+            else:
+                continue
+            if (method, path.removeprefix("/manage")) in backend_paths:
+                continue
+            if name not in taken and name not in names.values():
+                names[operation["operationId"]] = name
+    return names
+
+
 def attach(app: typer.Typer) -> None:
     data_spec = spec.load_data_spec()
     if "post" not in data_spec.get("paths", {}).get("/query", {}):
@@ -146,7 +206,7 @@ def attach(app: typer.Typer) -> None:
     app.command("legacy-metadata", hidden=True)(legacy_metadata)
     resources: dict[str, typer.Typer] = getattr(app, "_joltio_resources", {})
     for path, methods in data_spec.get("paths", {}).items():
-        if not path.startswith(("/coverage", "/indicators", "/manage/", "/recipes", "/revisions", "/search/", "/tier-info")):
+        if not path.startswith(PUBLIC_DATA_PREFIXES):
             continue
         for method, operation in methods.items():
             if method not in generate.HTTP_METHODS:

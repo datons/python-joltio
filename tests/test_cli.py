@@ -330,20 +330,28 @@ def test_mcp_uses_effective_workspace(monkeypatch, tmp_path):
     config.store_session(token="tok", base_url="https://x", api_url="https://api.x")
     config.store_workspace("beta")
     monkeypatch.setattr(mcp, "load_spec", lambda: FIXTURE_SPEC)
-    captured = {}
+    monkeypatch.setattr(mcp, "load_data_spec", lambda: {"paths": {"/query": {"post": {"operationId": "run_query_query_post"}}}})
+    clients = []
+    mounted = []
 
     def fake_client(**kwargs):
-        captured.update(kwargs)
+        clients.append(kwargs)
         return object()
 
     class Server:
+        def mount(self, server):
+            mounted.append(server)
+
         def run(self):
             return None
 
     monkeypatch.setattr(httpx2, "AsyncClient", fake_client)
     monkeypatch.setattr(fastmcp.FastMCP, "from_openapi", lambda **kwargs: Server())
     mcp.mcp()
-    assert captured["headers"] == {"Authorization": "Bearer tok", "X-Joltio-Workspace": "beta"}
+    # Backend y Data API: las dos con la misma credencial y el workspace efectivo.
+    assert [client["headers"] for client in clients] == [{"Authorization": "Bearer tok", "X-Joltio-Workspace": "beta"}] * 2
+    assert clients[1]["base_url"] == config.data_api_url()
+    assert len(mounted) == 1
 
 
 def test_admin_workspace_provision_flags_and_json(cli: tuple[typer.Typer, _Capture]) -> None:

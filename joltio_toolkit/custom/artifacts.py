@@ -16,6 +16,7 @@ from pathlib import Path
 
 import typer
 
+from joltio.client import user_agent
 from joltio.config import credential_headers
 from joltio_toolkit import config
 from joltio_toolkit.http import CliError, emit, request
@@ -25,6 +26,10 @@ DELEGATED_SUBCOMMANDS = ("init", "dev", "build", "validate", "preview", "publish
 
 _PASSTHROUGH = {"context_settings": {"allow_extra_args": True, "ignore_unknown_options": True}}
 
+
+
+def _engine_request(url: str) -> urllib.request.Request:
+    return urllib.request.Request(url, headers={"User-Agent": user_agent()})
 
 def _download_engine() -> Path:
     system = {"Darwin": "macos", "Linux": "linux"}.get(platform.system())
@@ -43,14 +48,14 @@ def _download_engine() -> Path:
             if hashlib.sha256(target.read_bytes()).hexdigest() == expected:
                 return target
             raise CliError("El checksum del motor instalado no coincide con el publicado; no se ejecutará.")
-        with urllib.request.urlopen(f"{base}/SHA256SUMS", timeout=30) as response:
+        with urllib.request.urlopen(_engine_request(f"{base}/SHA256SUMS"), timeout=30) as response:
             sums = response.read().decode("ascii")
         expected = next(line.split()[0] for line in sums.splitlines() if line.split()[1:] == [name])
         if target.exists():
             if hashlib.sha256(target.read_bytes()).hexdigest() == expected:
                 return target
             raise CliError("El checksum del motor instalado no coincide con el publicado; no se ejecutará.")
-        with urllib.request.urlopen(f"{base}/{name}", timeout=60) as response:
+        with urllib.request.urlopen(_engine_request(f"{base}/{name}"), timeout=60) as response:
             binary = response.read()
         if hashlib.sha256(binary).hexdigest() != expected:
             raise CliError("El checksum del motor descargado no coincide; no se ejecutará.")
