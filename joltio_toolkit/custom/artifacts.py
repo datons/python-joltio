@@ -11,6 +11,7 @@ import subprocess
 import tempfile
 import urllib.request
 import webbrowser
+from importlib import resources
 from importlib.metadata import version
 from pathlib import Path
 
@@ -31,6 +32,20 @@ _PASSTHROUGH = {"context_settings": {"allow_extra_args": True, "ignore_unknown_o
 def _engine_request(url: str) -> urllib.request.Request:
     return urllib.request.Request(url, headers={"User-Agent": user_agent()})
 
+ENGINE_CHECKSUMS = "engine-sha256sums.txt"
+
+
+def _parse_checksums(text: str) -> dict[str, str]:
+    """Formato de `sha256sum`: «<hex>  <fichero>» por línea."""
+    return {parts[1]: parts[0] for parts in (line.split() for line in text.splitlines()) if len(parts) == 2}
+
+
+def _bundled_checksums() -> dict[str, str] | None:
+    """Checksums del motor generados en la publicación (ci/engine-checksums.py) y empaquetados con esta versión; None en un checkout de desarrollo."""
+    resource = resources.files("joltio_toolkit.data").joinpath(ENGINE_CHECKSUMS)
+    return _parse_checksums(resource.read_text(encoding="ascii")) if resource.is_file() else None
+
+
 def _download_engine() -> Path:
     system = {"Darwin": "macos", "Linux": "linux"}.get(platform.system())
     machine = {"arm64": "arm64", "aarch64": "arm64", "x86_64": "amd64"}.get(platform.machine())
@@ -42,15 +57,22 @@ def _download_engine() -> Path:
     data_home = Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local" / "share"))
     target = data_home / "joltio" / "engine" / release / name
     saved_checksum = target.parent / f"{name}.sha256"
+    bundled = _bundled_checksums()
     try:
-        if target.exists() and saved_checksum.exists():
+        if bundled is not None:
+            # El checksum viaja en el paquete publicado en PyPI: manipular el CDN (binario y SHA256SUMS a la vez) no basta para ejecutar otro motor.
+            if name not in bundled:
+                raise CliError(f"Este paquete de joltio no incluye el checksum de {name}; no se ejecutará.")
+            expected = bundled[name]
+        elif target.exists() and saved_checksum.exists():
             expected = saved_checksum.read_text(encoding="ascii").strip()
             if hashlib.sha256(target.read_bytes()).hexdigest() == expected:
                 return target
             raise CliError("El checksum del motor instalado no coincide con el publicado; no se ejecutará.")
-        with urllib.request.urlopen(_engine_request(f"{base}/SHA256SUMS"), timeout=30) as response:
-            sums = response.read().decode("ascii")
-        expected = next(line.split()[0] for line in sums.splitlines() if line.split()[1:] == [name])
+        else:
+            with urllib.request.urlopen(_engine_request(f"{base}/SHA256SUMS"), timeout=30) as response:
+                sums = response.read().decode("ascii")
+            expected = _parse_checksums(sums)[name]
         if target.exists():
             if hashlib.sha256(target.read_bytes()).hexdigest() == expected:
                 return target
@@ -68,7 +90,7 @@ def _download_engine() -> Path:
         saved_checksum.write_text(expected, encoding="ascii")
         saved_checksum.chmod(0o600)
         return target
-    except (OSError, UnicodeError, StopIteration, IndexError) as exc:
+    except (OSError, UnicodeError, KeyError) as exc:
         raise CliError(f"No se pudo descargar o verificar el motor de Joltio: {exc}") from exc
 
 

@@ -132,12 +132,15 @@ class Client:
 
         return response.json()
 
-    def _request_headers(self, extra: dict[str, str] | None = None) -> dict[str, str]:
+    def _request_headers(self, extra: dict[str, str] | None = None) -> httpx.Headers:
         if not self._explicit_credential:
             self._http.headers.pop("X-API-Key", None)
             self._http.headers.pop("Authorization", None)
             self._http.headers.update(credential_headers(session_token=self._session_token))
-        return {**dict(self._http.headers), **(extra or {})}
+        # httpx.Headers ignora mayúsculas: con un dict, «authorization» (cliente) y «Authorization» (petición) salían como dos cabeceras y Cloudflare rechaza la petición con 400.
+        merged = httpx.Headers(self._http.headers)
+        merged.update(extra or {})
+        return merged
 
     def request_response(self, method: str, path: str, *, params: dict[str, Any] | None = None, json: Any = None, headers: dict[str, str] | None = None) -> httpx.Response:
         """Petición HTTP cruda compartida con la CLI generada."""

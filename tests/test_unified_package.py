@@ -114,3 +114,58 @@ def test_quickstart_extracts_public_bundle_unchanged(monkeypatch, tmp_path):
     target = tmp_path / "q"
     data.quickstart(target)
     assert {name: (target / name).read_bytes() for name in files} == files
+
+
+def _engine_env(monkeypatch, tmp_path):
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path))
+    monkeypatch.delenv("JOLTIO_APP_ENGINE", raising=False)
+    monkeypatch.delenv("JOLTIO_ARTIFACT_CLI", raising=False)
+    monkeypatch.setattr(artifacts, "_dev_source", lambda: None)
+    monkeypatch.setattr(artifacts, "version", lambda name: "0.2.3")
+    monkeypatch.setattr(artifacts.platform, "system", lambda: "Linux")
+    monkeypatch.setattr(artifacts.platform, "machine", lambda: "x86_64")
+    return "joltio-app-engine-linux-amd64"
+
+
+class _Response(io.BytesIO):
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *args):
+        self.close()
+
+
+def test_bundled_checksum_is_the_only_trust_anchor(monkeypatch, tmp_path):
+    name = _engine_env(monkeypatch, tmp_path)
+    genuine = b"motor publicado con este wheel"
+    monkeypatch.setattr(artifacts, "_bundled_checksums", lambda: {name: hashlib.sha256(genuine).hexdigest()})
+    urls = []
+
+    def download(request, **kwargs):
+        urls.append(request.full_url)
+        return _Response(genuine)
+
+    monkeypatch.setattr(artifacts.urllib.request, "urlopen", download)
+    assert Path(artifacts.resolve_engine()[0]).read_bytes() == genuine
+    assert not any(url.endswith("SHA256SUMS") for url in urls)
+
+
+def test_tampered_cdn_cannot_replace_the_engine(monkeypatch, tmp_path):
+    name = _engine_env(monkeypatch, tmp_path)
+    genuine, tampered = b"motor publicado", b"motor manipulado en el CDN"
+    monkeypatch.setattr(artifacts, "_bundled_checksums", lambda: {name: hashlib.sha256(genuine).hexdigest()})
+
+    def download(request, **kwargs):
+        # El atacante del CDN sirve un binario y un SHA256SUMS coherentes entre sí.
+        if request.full_url.endswith("SHA256SUMS"):
+            return _Response(f"{hashlib.sha256(tampered).hexdigest()}  {name}\n".encode())
+        return _Response(tampered)
+
+    monkeypatch.setattr(artifacts.urllib.request, "urlopen", download)
+    with pytest.raises(CliError, match="checksum"):
+        artifacts.resolve_engine()
+    assert not (tmp_path / "joltio" / "engine" / "0.2.3" / name).exists()
+
+
+def test_bundled_checksums_absent_in_a_development_checkout():
+    assert artifacts._bundled_checksums() is None

@@ -1,6 +1,6 @@
 [project]
 name = "joltio"
-version = "0.2.1"
+version = "0.2.3"
 description = "Cliente Python y CLI de Joltio"
 readme = "README.md"
 requires-python = ">=3.10"

@@ -1,5 +1,14 @@
 # Cambios de `joltio`
 
+## 0.2.3
+
+- Los checksums del motor de apps viajan dentro del paquete publicado en PyPI y la CLI verifica la descarga solo contra ellos: manipular el CDN (binario y `SHA256SUMS` a la vez) ya no basta para ejecutar otro motor.
+
+## 0.2.2
+
+- Con la sesión de `joltio login`, todas las peticiones fallaban con un 400 de Cloudflare: la credencial salía en dos cabeceras (`authorization` y `Authorization`). Ahora se envía una sola.
+- La Data API acepta la sesión de la CLI (requería permiso de lectura sobre `cli_session`, que llega con la migración 0049 del servidor).
+
 ## 0.2.1
 
 - `joltio mcp` expone también la Data API: `data_query` (SQL sobre el mercado), indicadores, recetas, revisiones y búsqueda por facetas, con la misma credencial y workspace. Lo que el backend ya ofrece como proxy de Data (claves, plan, uso, cobertura…) no se duplica. El servidor informa la versión de `joltio`.
