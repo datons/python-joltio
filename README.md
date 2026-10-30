@@ -21,15 +21,20 @@ La precedencia de credenciales para la librería y la CLI es argumento explícit
 
 `joltio data query "select 1" --format json|csv|parquet` consulta `https://api.joltio.app/data/query`. Usa `JOLTIO_API_KEY` o `JOLTIO_DATA_API_KEY` si está definido; en su ausencia usa el Bearer de `joltio login`. `JOLTIO_DATA_API_URL` cambia el origen de Data y `X-Joltio-Workspace` lleva el workspace efectivo. No se almacena ninguna clave compartida. Para los comandos de Data generados desde el OpenAPI se usa la misma resolución de identidad. `--format csv` escribe CSV en stdout; `parquet` convierte el flujo CSV a Parquet en stdout.
 
+Para bajar años de histórico usa `j.data.download("omie.prices", "2020-01-01", "2026-10-01", path="data/omie_prices")` (requiere `joltio[parquet]`): trocea según los límites de tu plan, respeta la cuota y deja Parquet por mes que se puede reanudar. La guía completa está en https://joltio.app/data/docs/guides/bulk-download.
+
 `joltio self sync-spec` está oculto y actualiza los dos OpenAPI empaquetados en `~/.config/joltio/`; reabre la CLI después. `joltio self update` actualiza instalaciones de `uv tool` y muestra el comando para instalaciones de pip o proyectos uv. El catálogo CRM queda en la issue `130d8591`. La instalación de desarrollo desde este checkout es `uv tool install ./toolkit`; `JOLTIO_APP_ENGINE` permite usar un motor local.
 
 ## Compatibilidad
 
 La API de `joltio` 0.1.0 conserva `Client`, `data`, `esios`, modelos y excepciones. Sus comandos `data query|search|coverage|metadata` y `auth set|show|remove` se aceptan como alias; los renombrados muestran aviso. La clave TOML de 0.1.0 sigue leyéndose.
 
-Los nombres anteriores se mantienen como alias ocultos. Cada alias renombrado emite un aviso en stderr y ejecuta la misma operación, conservando el código de salida y stdout. La excepción son las seis rutas de vistas Fleet retiradas aguas arriba en `9a477e2`: sus equivalentes se redirigen a ámbitos y medidas; crear, actualizar o alternar una vista falla con una indicación de los comandos nuevos. Las operaciones que no cambiaron de ruta conservan el nombre sin aviso. La copia OpenAPI anterior contenía 137 operaciones; las rutas nuevas de invitaciones, importación de Fleet, ámbitos y medidas no forman parte de esta tabla.
+Los nombres anteriores se mantienen como alias ocultos. Cada alias renombrado emite un aviso en stderr y ejecuta la misma operación, conservando el código de salida y stdout. La excepción son las seis rutas de vistas Fleet retiradas aguas arriba en `9a477e2`: sus equivalentes se redirigen a ámbitos y medidas; crear, actualizar o alternar una vista falla con una indicación de los comandos nuevos. Las operaciones que no cambiaron de ruta conservan el nombre sin aviso. La copia OpenAPI anterior contenía 137 operaciones; las operaciones añadidas después del cambio de nombres (invitaciones, importación de Fleet, ámbitos, medidas, administración y planes, entre otras) nunca tuvieron nombre anterior, así que no tienen alias ni forman parte de esta tabla.
 
 ### Comandos de la CLI TypeScript anterior
+
+#### joltio admin invite
+- Nuevo: `joltio admin workspace-invitation create`.
 
 #### joltio login
 - Nuevo: `joltio login`.
@@ -42,6 +47,15 @@ Los nombres anteriores se mantienen como alias ocultos. Cada alias renombrado em
 
 #### joltio init
 - Nuevo: `joltio artifacts init`.
+
+#### joltio support get-standing-config
+- Nuevo: `joltio support standing-config get`.
+
+#### joltio support open-standing
+- Nuevo: `joltio support standing start`.
+
+#### joltio support update-standing-config
+- Nuevo: `joltio support standing-config update`.
 
 #### joltio validate
 - Nuevo: `joltio artifacts validate`.
@@ -416,6 +430,24 @@ Los nombres anteriores se mantienen como alias ocultos. Cada alias renombrado em
 
 #### joltio pulse update-dashboard-app
 - Nuevo: `joltio pulse dashboard-app update`.
+
+#### joltio support approve-grant
+- Nuevo: `joltio support grant approve`.
+
+#### joltio support create-grant
+- Nuevo: `joltio support grant create`.
+
+#### joltio support list-access-log
+- Nuevo: `joltio support access-log list`.
+
+#### joltio support list-grants
+- Nuevo: `joltio support grant list`.
+
+#### joltio support revoke-grant
+- Nuevo: `joltio support grant revoke`.
+
+#### joltio support update-policy
+- Nuevo: `joltio support policy update`.
 
 #### joltio studio add-asset
 - Nuevo: `joltio studio asset add`.

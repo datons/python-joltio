@@ -178,6 +178,15 @@ def test_bundled_spec_builds_full_tree() -> None:
     assert "core" not in help_text
 
 
+def test_bundled_fleet_spec_does_not_advertise_the_removed_day_schedule(monkeypatch: pytest.MonkeyPatch) -> None:
+    bundled = spec.bundled_spec()
+    assert "/api/fleet/assets/{code}/dia" not in bundled["paths"]
+    monkeypatch.setattr(app_module, "load_spec", lambda: bundled)
+    fleet_help = runner.invoke(build_app(), ["fleet", "--help"])
+    assert fleet_help.exit_code == 0
+    assert "day-schedule" not in fleet_help.stdout
+
+
 def test_every_renamed_openapi_command_keeps_a_compatible_hidden_alias(monkeypatch: pytest.MonkeyPatch) -> None:
     bundled = spec.bundled_spec()
     monkeypatch.setattr(app_module, "load_spec", lambda: bundled)
@@ -206,7 +215,7 @@ def test_every_renamed_openapi_command_keeps_a_compatible_hidden_alias(monkeypat
 def test_documented_command_mapping_matches_bundled_openapi() -> None:
     documentation = (Path(__file__).resolve().parents[1] / "README.md").read_text(encoding="utf-8")
     rows = generate.command_mapping(spec.bundled_spec())
-    assert len(rows) == 137
+    assert len(rows) == 147
     for legacy_id, old_path, new_path in rows:
         if legacy_id in generate.RETIRED_VIEW_ALIASES:
             assert f"#### joltio {old_path}\n- Retirado aguas arriba (9a477e2): `joltio {new_path}`." in documentation
@@ -266,11 +275,12 @@ def test_workspace_use_persists_and_generated_requests_switch(monkeypatch, tmp_p
     def fake_request(method, url, **kwargs):
         capture.calls.append({"method": method, "url": url, **kwargs})
         if url.endswith("/api/workspaces"):
-            return httpx.Response(200, json=[{"id": "A", "slug": "alpha", "name": "Alpha", "role": "owner"}, {"id": "B", "slug": "beta", "name": "Beta", "role": "viewer"}], request=httpx.Request(method, url))
+            return httpx.Response(200, json=[{"id": "A", "slug": "alpha", "name": "Alpha", "role": "owner", "hasData": True}, {"id": "B", "slug": "beta", "name": "Beta", "role": "viewer", "hasData": True}, {"id": "C", "slug": "gamma", "name": "Gamma", "role": "member", "hasData": False}], request=httpx.Request(method, url))
         return httpx.Response(200, json={"portfolio": "B"}, request=httpx.Request(method, url))
 
     monkeypatch.setattr(httpx.Client, "request", lambda client, method, url, **kwargs: fake_request(method, str(client.base_url).rstrip("/") + url, **kwargs))
     app = build_app()
+    assert "alpha, beta" in str(runner.invoke(app, ["workspace", "use", "gamma"]).exception)
     assert runner.invoke(app, ["workspace", "use", "beta"]).exit_code == 0
     assert config.load_session().workspace == "beta"
     result = runner.invoke(app, ["fleet", "portfolio"])
@@ -356,7 +366,23 @@ def test_mcp_uses_effective_workspace(monkeypatch, tmp_path):
 
 def test_admin_workspace_provision_flags_and_json(cli: tuple[typer.Typer, _Capture]) -> None:
     app, capture = cli
-    result = runner.invoke(app, ["admin", "workspace", "provision", "--name", "Energía Ejemplo", "--domain", "ejemplo.es", "--owner", "owner@datons.com", "--data", "pilot", "--data-seats", "5", "--pulse", "starter", "--pulse-seats", "5", "--fleet", "starter", "--fleet-seats", "5", "--until", "2026-12-31", "--domain-join", "auto", "--dry-run", "--json"])
+    result = runner.invoke(app, ["admin", "workspace", "provision", "--name", "Energía Ejemplo", "--domain", "ejemplo.es", "--owner", "owner@datons.com", "--data", "pilot", "--data-seats", "5", "--pulse", "starter", "--pulse-seats", "5", "--fleet", "starter", "--fleet-seats", "5", "--until", "2026-12-31", "--domain-join", "auto", "--lifecycle", "design_partner", "--dry-run", "--json"])
     assert result.exit_code == 0, result.stdout
     assert capture.calls[-1]["url"] == "https://api.x/api/admin/workspaces/provision"
-    assert capture.calls[-1]["json"] == {"name": "Energía Ejemplo", "domains": ["ejemplo.es"], "owner_email": "owner@datons.com", "products": [{"product": "data", "plan": "pilot", "seats": 5}, {"product": "pulse", "plan": "starter", "seats": 5}, {"product": "fleet", "plan": "starter", "seats": 5}], "until": "2026-12-31", "domain_join": "auto", "owner_seats": False, "dry_run": True}
+    assert capture.calls[-1]["json"] == {"name": "Energía Ejemplo", "domains": ["ejemplo.es"], "owner_email": "owner@datons.com", "products": [{"product": "data", "plan": "pilot", "seats": 5}, {"product": "pulse", "plan": "starter", "seats": 5}, {"product": "fleet", "plan": "starter", "seats": 5}], "until": "2026-12-31", "domain_join": "auto", "seat_overflow": None, "lifecycle": "design_partner", "owner_seats": None, "release_owner": False, "dry_run": True}
+
+
+def test_admin_workspace_provision_release_owner_flag(cli: tuple[typer.Typer, _Capture]) -> None:
+    app, capture = cli
+    result = runner.invoke(app, ["admin", "workspace", "provision", "--name", "Energía Ejemplo", "--domain", "ejemplo.es", "--owner", "owner@datons.com", "--data", "pilot", "--data-seats", "5", "--release-owner", "--dry-run", "--json"])
+    assert result.exit_code == 0, result.stdout
+    assert capture.calls[-1]["json"]["release_owner"] is True and capture.calls[-1]["json"]["owner_seats"] is None
+
+
+def test_admin_workspace_provision_seat_overflow_flag(cli: tuple[typer.Typer, _Capture]) -> None:
+    app, capture = cli
+    base = ["admin", "workspace", "provision", "--name", "Energía Ejemplo", "--domain", "ejemplo.es", "--owner", "owner@datons.com", "--data", "pilot", "--data-seats", "5", "--dry-run", "--json"]
+    assert runner.invoke(app, [*base, "--seat-overflow"]).exit_code == 0
+    assert capture.calls[-1]["json"]["seat_overflow"] is True
+    assert runner.invoke(app, [*base, "--no-seat-overflow"]).exit_code == 0
+    assert capture.calls[-1]["json"]["seat_overflow"] is False

@@ -1,6 +1,6 @@
 [project]
 name = "joltio"
-version = "0.3.0"
+version = "0.4.0"
 description = "Cliente Python y CLI de Joltio"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -36,9 +36,11 @@ packages = ["joltio", "joltio_toolkit"]
 [tool.hatch.build.targets.wheel.force-include]
 "joltio_toolkit/data/openapi.json" = "joltio_toolkit/data/openapi.json"
 "joltio_toolkit/data/data-api-openapi.json" = "joltio_toolkit/data/data-api-openapi.json"
+"joltio_toolkit/data/ledger_helper.py" = "joltio_toolkit/data/ledger_helper.py"
 
 [dependency-groups]
 dev = [
+  "matplotlib>=3.8",
   "pytest>=8.4",
   "ruff>=0.12",
 ]

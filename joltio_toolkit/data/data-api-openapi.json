@@ -731,6 +731,84 @@
         ]
       }
     },
+    "/coverage/units": {
+      "get": {
+        "description": "Why each unit's I90 is or is not complete, day by day: not yet published by REE, late at the source, a documented source gap, ours to reload, or the unit simply had no programme. Free, like the rest of the coverage catalog.",
+        "operationId": "get_unit_days_coverage_units_get",
+        "parameters": [
+          {
+            "description": "Comma-separated UP codes.",
+            "in": "query",
+            "name": "units",
+            "required": true,
+            "schema": {
+              "description": "Comma-separated UP codes.",
+              "title": "Units",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "from",
+            "required": true,
+            "schema": {
+              "format": "date",
+              "title": "From",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "to",
+            "required": true,
+            "schema": {
+              "format": "date",
+              "title": "To",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "locale",
+            "required": false,
+            "schema": {
+              "default": "es",
+              "pattern": "^(es|en)$",
+              "title": "Locale",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Get Unit Days Coverage Units Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Unit Days",
+        "tags": [
+          "coverage"
+        ]
+      }
+    },
     "/describe": {
       "get": {
         "description": "DEPRECATED alias — use `search` (same payloads, one tool).\n\n`search()` with no args → list every domain. `search(domain=X)` with\nno q/facets/values_of → facets + columns + backend metadata. This\nendpoint stays for clients with cached tool lists; it will be removed\nonce its usage drops to zero in mcps.events.",
@@ -1474,6 +1552,70 @@
         ]
       }
     },
+    "/metadata": {
+      "get": {
+        "description": "I90 per-unit dispatch schema and programs. For the whole catalog use `/describe`.",
+        "operationId": "get_metadata_metadata_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "lang",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "pattern": "^(en|es)$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Lang"
+            }
+          },
+          {
+            "in": "query",
+            "name": "detail",
+            "required": false,
+            "schema": {
+              "default": "summary",
+              "pattern": "^(summary|full)$",
+              "title": "Detail",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Get Metadata Metadata Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Metadata",
+        "tags": [
+          "metadata"
+        ]
+      }
+    },
     "/query": {
       "post": {
         "description": "Execute a read-only query — you write it, in the language that fits.\n\nTWO DIALECTS (mutually exclusive):\n- `sql` → ClickHouse analytics: aggregations, pivots, window functions,\n  time-series. Use for \"compute numbers\".\n- `graphql` (+ optional `variables`) → typed entity navigation with\n  nested relationship traversal over PG (units, companies, groups,\n  installations, nodes). Use for \"walk the entity graph\". Introspection\n  (__schema) is free; pre-flight cost with first: 1 reading extensions.cost.\n\nDo not assume table names. Call `my_status()` for your plan and date windows, `describe()` for current columns, and `guide(topic='dialects')` for dialect traps.\nFilter by a time range inside your window and by geography or program when relevant. Prefer aggregated results.\nQuery responses include freshness badges for explicit indicator IDs; disclose stale data when citing a result.",
@@ -1867,11 +2009,11 @@
           },
           {
             "in": "query",
-            "name": "include_first_loads",
+            "name": "include_publications",
             "required": false,
             "schema": {
               "default": false,
-              "title": "Include First Loads",
+              "title": "Include Publications",
               "type": "boolean"
             }
           }

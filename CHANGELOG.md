@@ -1,5 +1,9 @@
 # Cambios de `joltio`
 
+## 0.4.0
+
+- **Descarga masiva reanudable:** `j.data.download(table, start, end, path=...)` baja un rango de una tabla a Parquet particionado por mes (`month=YYYY-MM/`). Trocea según el límite de filas por consulta de tu plan, parte un trozo cuando la respuesta llega cortada (`truncated: true`) o con un 422, espera a que se renueve la cuota ante un 429 (como máximo `max_wait` segundos, 3600 por defecto, y si no lanza `RateLimitError`) y, si se interrumpe, continúa sin repetir los trozos ya escritos. `since="last", revise_days=N` refresca desde la última fecha guardada y vuelve a pedir los últimos N días. Requiere `joltio[parquet]`. Guía: https://joltio.app/data/docs/guides/bulk-download
+
 ## 0.3.0
 
 - **Las columnas de fecha y hora conservan su zona horaria.** `data.query` devuelve cada `DateTime('Europe/Madrid')` como `Datetime(time_zone="Europe/Madrid")` en Polars y `datetime64[…, Europe/Madrid]` en pandas, con la hora de Madrid (23:45+02:00). Antes salía la hora en UTC sin zona (21:45), que se confundía con hora local, y en pandas los días de cambio de hora la columna quedaba como texto. La hora repetida al atrasar el reloj se distingue (02:30+02:00 y 02:30+01:00).

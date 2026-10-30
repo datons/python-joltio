@@ -1,6 +1,6 @@
 """Resolución de sesión y endpoints de la CLI.
 
-La sesión se comparte con la CLI TypeScript de `cli/`: ambas leen y escriben el mismo `~/.config/joltio/session.json` (`{token, baseUrl, apiUrl}`), así que un `joltio login` desde cualquiera de las dos autentica a la otra. Todo es sobreescribible por entorno para CI y despliegues.
+El motor TypeScript de `packages/app-engine/` comparte con esta CLI el fichero `~/.config/joltio/session.json` (`{token, baseUrl, apiUrl}`), de modo que `joltio login` también autentica los comandos de artefactos. Todo es sobreescribible por entorno para CI y despliegues.
 """
 
 from __future__ import annotations

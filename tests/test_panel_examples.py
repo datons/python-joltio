@@ -9,7 +9,7 @@ import pytest
 
 import joltio.client
 
-# Fixture generado desde frontend/src/lib/data/code-examples.ts (python-examples.test.ts lo mantiene al día): son los fragmentos que el panel y el cuaderno de arranque enseñan a los clientes.
+# Fixture generado desde apps/web/src/lib/data/code-examples.ts (python-examples.test.ts lo mantiene al día): son los fragmentos que el panel y el cuaderno de arranque enseñan a los clientes.
 EXAMPLES = json.loads((Path(__file__).parent / "fixtures" / "panel_python_examples.json").read_text(encoding="utf-8"))
 QUERY_RESPONSE = {
     "columns": [{"name": "day", "type": "Date"}, {"name": "avg_price", "type": "Float64"}],

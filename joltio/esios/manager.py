@@ -69,6 +69,22 @@ class EsiosDataManager:
     def __init__(self, client: Client):
         self._client = client
 
+    def download(
+        self,
+        table: str,
+        start: str | None = None,
+        end: str | None = None,
+        *,
+        path: str,
+        since: str | None = None,
+        revise_days: int = 0,
+        max_wait: float = 3600,
+    ) -> list:
+        """Write resumable monthly Parquet partitions from the governed Data API."""
+        from joltio.data.download import download
+
+        return download(self._client, table, start, end, path=path, since=since, revise_days=revise_days, max_wait=max_wait)
+
     def query(
         self,
         sql: str,

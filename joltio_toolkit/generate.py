@@ -22,7 +22,6 @@ FUTURE_OPERATION_IDS = frozenset({"fleet_measure_catalog_get", "fleet_portfolio_
 EXCLUDED_MODULES = frozenset({"core", "leads", "pulse-internal", "workspaces"}) | FUTURE_MODULES
 EXCLUDED_PATH_FRAGMENTS = ("/public/", "/internal/")
 MODULE_ALIASES = {"entitlements": "workspace"}
-NEW_OPERATION_IDS = frozenset({"fleet_assets_import", "workspace_invitation_create"}) | FUTURE_OPERATION_IDS
 RETIRED_VIEW_ALIASES = {
     "fleet_create_view": ("fleet create-view", "scopes create / joltio measures create"),
     "fleet_delete_view": ("fleet delete-view", "scopes delete / joltio measures delete"),
@@ -75,10 +74,11 @@ def command_mapping(spec: dict[str, Any]) -> list[tuple[str, str, str]]:
         if module in FUTURE_MODULES | NEW_MODULES:
             continue
         for _, path, operation in operations:
-            operation_id = operation["operationId"]
-            if operation_id in NEW_OPERATION_IDS:
+            # Only operations that existed before the rename carry x-legacy-operation-id (frozen in the backend), so a new route never gets an alias for a command that never existed.
+            legacy_id = operation.get("x-legacy-operation-id")
+            if legacy_id is None:
                 continue
-            legacy_id = operation.get("x-legacy-operation-id", operation_id)
+            operation_id = operation["operationId"]
             old_module = module_of(operation)
             old_action = action_name(legacy_id, old_module)
             public_module = MODULE_ALIASES.get(module, module)

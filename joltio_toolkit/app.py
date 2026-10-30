@@ -29,7 +29,7 @@ def build_app() -> typer.Typer:
         config.set_workspace_override(ctx, workspace)
         config.set_json_output(ctx, json_output)
 
-    module_apps = generate.build_module_apps(load_spec(), skip_operation_ids=frozenset({"admin_workspace_provision", "fleet_assets_import"}))
+    module_apps = generate.build_module_apps(load_spec(), skip_operation_ids=frozenset({"admin_workspace_provision", "admin_plan_create", "admin_plan_publish", "admin_plan_get", "admin_plan_list", "admin_plan_archive", "fleet_assets_import"}))
     # La autoría de artefactos (dev/build/init/validate, delegada a Bun) se cuelga del grupo `artifacts` generado.
     if "artifacts" in module_apps:
         artifacts_cmd.attach(module_apps["artifacts"])

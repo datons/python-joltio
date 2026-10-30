@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Annotated, Literal
+from typing import Annotated, Literal, TypedDict
 
 import typer
 
@@ -12,7 +12,16 @@ from joltio_toolkit.http import CliError, emit, request
 workspace_app = typer.Typer(no_args_is_help=True, help="Lista y selecciona tus workspaces.")
 
 
-def memberships() -> list[dict[str, str]]:
+class WorkspaceMembership(TypedDict):
+    id: str
+    slug: str
+    name: str
+    role: str
+    current: bool
+    hasData: bool
+
+
+def memberships() -> list[WorkspaceMembership]:
     return request("GET", "/api/workspaces", workspace_header=False)
 
 
@@ -32,9 +41,10 @@ def list_workspaces() -> None:
 @workspace_app.command("use")
 def use(workspace: str) -> None:
     """Guarda el workspace predeterminado por id o slug."""
-    selected = next((item for item in memberships() if workspace in (item["id"], item["slug"])), None)
+    available = [item for item in memberships() if item.get("hasData")]
+    selected = next((item for item in available if workspace in (item["id"], item["slug"])), None)
     if selected is None:
-        raise CliError("No perteneces al workspace solicitado.")
+        raise CliError("No puedes usar ese espacio con Data. Espacios disponibles: " + (", ".join(str(item["slug"]) for item in available) or "ninguno") + ".")
     try:
         config.store_workspace(selected["slug"])
     except ValueError as exc:

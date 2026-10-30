@@ -41,7 +41,7 @@ def _parse_checksums(text: str) -> dict[str, str]:
 
 
 def _bundled_checksums() -> dict[str, str] | None:
-    """Checksums del motor generados en la publicación (ci/engine-checksums.py) y empaquetados con esta versión; None en un checkout de desarrollo."""
+    """Checksums del motor generados en la publicación (scripts/engine-checksums.ts) y empaquetados con esta versión; None en un checkout de desarrollo."""
     resource = resources.files("joltio_toolkit.data").joinpath(ENGINE_CHECKSUMS)
     return _parse_checksums(resource.read_text(encoding="ascii")) if resource.is_file() else None
 
