@@ -1,6 +1,6 @@
 [project]
 name = "joltio"
-version = "0.4.0"
+version = "0.4.2"
 description = "Cliente Python y CLI de Joltio"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -29,6 +29,9 @@ joltio = "joltio.cli:main"
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.sdist]
+exclude = ["scripts"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["joltio", "joltio_toolkit"]

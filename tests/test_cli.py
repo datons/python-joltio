@@ -386,3 +386,51 @@ def test_admin_workspace_provision_seat_overflow_flag(cli: tuple[typer.Typer, _C
     assert capture.calls[-1]["json"]["seat_overflow"] is True
     assert runner.invoke(app, [*base, "--no-seat-overflow"]).exit_code == 0
     assert capture.calls[-1]["json"]["seat_overflow"] is False
+
+
+def _admin_host_session(monkeypatch: pytest.MonkeyPatch, api_url: str, **extra: Any) -> _Capture:
+    monkeypatch.delenv("JOLTIO_API_KEY", raising=False)
+    monkeypatch.delenv("JOLTIO_TOKEN", raising=False)
+    monkeypatch.setattr(library_config, "read_api_key", lambda: None)
+    monkeypatch.setattr(spec, "load_spec", lambda: FIXTURE_SPEC)
+    monkeypatch.setattr(app_module, "load_spec", lambda: FIXTURE_SPEC)
+    monkeypatch.setattr(generate.http, "load_session", lambda: config.Session("tok", "https://joltio.app", api_url, **extra))
+    monkeypatch.setattr(generate.http, "effective_workspace", lambda: None)
+    capture = _Capture()
+    monkeypatch.setattr(httpx.Client, "request", lambda client, method, url, **kwargs: capture(method, str(client.base_url).rstrip("/") + url, **kwargs))
+    return capture
+
+
+@pytest.mark.parametrize("api_url", ["https://api.joltio.app", "https://joltio.app"])
+def test_admin_commands_default_to_the_admin_host_in_production(monkeypatch: pytest.MonkeyPatch, api_url: str) -> None:
+    capture = _admin_host_session(monkeypatch, api_url)
+    for argv, expected in ((["admin", "plan", "list"], "https://admin.joltio.app/api/admin/plans"), (["admin", "plan", "show", "pilot"], "https://admin.joltio.app/api/admin/plans/pilot")):
+        result = runner.invoke(build_app(), argv)
+        assert result.exit_code == 0, result.stdout
+        assert capture.calls[-1]["url"] == expected
+    # Los comandos de miembro siguen en el API de miembros.
+    runner.invoke(build_app(), ["ledger", "overview"])
+    assert capture.calls[-1]["url"] == f"{api_url}/api/ledger/overview"
+
+
+def test_admin_host_is_configurable_and_local_servers_keep_their_url(monkeypatch: pytest.MonkeyPatch) -> None:
+    capture = _admin_host_session(monkeypatch, "https://api.joltio.app", admin_api_url="https://admin.staging.example")
+    assert runner.invoke(build_app(), ["admin", "plan", "list"]).exit_code == 0
+    assert capture.calls[-1]["url"] == "https://admin.staging.example/api/admin/plans"
+    capture = _admin_host_session(monkeypatch, "http://127.0.0.1:8787")
+    assert runner.invoke(build_app(), ["admin", "plan", "list"]).exit_code == 0
+    assert capture.calls[-1]["url"] == "http://127.0.0.1:8787/api/admin/plans"
+
+
+def test_admin_api_url_reads_environment_and_stored_session(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("JOLTIO_SESSION", str(tmp_path / "session.json"))
+    monkeypatch.delenv("JOLTIO_API_URL", raising=False)
+    monkeypatch.delenv("JOLTIO_ADMIN_API_URL", raising=False)
+    config.store_session(token="tok", base_url="https://joltio.app", api_url="https://api.joltio.app")
+    assert config.admin_api_url() == "https://admin.joltio.app"
+    (tmp_path / "session.json").write_text('{"token": "tok", "apiUrl": "https://api.joltio.app", "adminApiUrl": "https://admin.stored.example/"}')
+    assert config.admin_api_url() == "https://admin.stored.example"
+    config.store_session(token="tok2", base_url="https://joltio.app", api_url="https://api.joltio.app")
+    assert config.admin_api_url() == "https://admin.stored.example"
+    monkeypatch.setenv("JOLTIO_ADMIN_API_URL", "https://admin.env.example")
+    assert config.admin_api_url() == "https://admin.env.example"

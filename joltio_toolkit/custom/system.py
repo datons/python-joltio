@@ -46,6 +46,7 @@ def whoami() -> None:
             "expires_at": claims.get("exp"),
             "base_url": session.base_url,
             "api_url": session.api_url,
+            "admin_api_url": config.admin_api_url(session),
         }
     )
 
@@ -91,6 +92,7 @@ def info() -> None:
             "authenticated": bool(session.token),
             "base_url": session.base_url,
             "api_url": session.api_url,
+            "admin_api_url": config.admin_api_url(session),
             "spec_source": "cache" if cached.exists() else "bundled",
             "spec_cache_path": str(cached),
             "api_title": loaded.get("info", {}).get("title"),

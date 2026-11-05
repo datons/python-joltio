@@ -1,5 +1,16 @@
 # Cambios de `joltio`
 
+## Sin publicar
+
+## 0.4.2
+
+- Primera versión publicada en PyPI desde git.datons.com; incluye los cambios de la 0.4.1, que no llegó a publicarse.
+
+## 0.4.1
+
+- Los comandos `joltio admin ...` van al host de administración (`https://admin.joltio.app`) cuando el API es el de producción; antes llamaban al host de miembros y recibían 404. Se cambia con `JOLTIO_ADMIN_API_URL` o `adminApiUrl` en `session.json`; con un API local o de pruebas siguen usando ese mismo servidor. `joltio self info` y `joltio whoami` muestran `admin_api_url`.
+- `joltio whoami` ya no falla con `Operation unavailable` cuando la sesión no tiene workspace seleccionado (arreglo en el servidor).
+
 ## 0.4.0
 
 - **Descarga masiva reanudable:** `j.data.download(table, start, end, path=...)` baja un rango de una tabla a Parquet particionado por mes (`month=YYYY-MM/`). Trocea según el límite de filas por consulta de tu plan, parte un trozo cuando la respuesta llega cortada (`truncated: true`) o con un 422, espera a que se renueve la cuota ante un 429 (como máximo `max_wait` segundos, 3600 por defecto, y si no lanza `RateLimitError`) y, si se interrumpe, continúa sin repetir los trozos ya escritos. `since="last", revise_days=N` refresca desde la última fecha guardada y vuelve a pedir los últimos N días. Requiere `joltio[parquet]`. Guía: https://joltio.app/data/docs/guides/bulk-download

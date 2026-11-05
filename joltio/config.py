@@ -22,6 +22,9 @@ import typer
 
 DEFAULT_BASE_URL = "https://joltio.app"
 DEFAULT_DATA_API_URL = "https://api.joltio.app/data"
+DEFAULT_ADMIN_API_URL = "https://admin.joltio.app"
+# Hosts de producción del API de miembros: los comandos de administración no se sirven ahí, sino en DEFAULT_ADMIN_API_URL.
+_MEMBER_API_URLS = frozenset({DEFAULT_BASE_URL, "https://api.joltio.app"})
 
 
 class CredentialError(RuntimeError):
@@ -103,6 +106,7 @@ class Session:
     api_url: str
     workspace: str | None = None
     refresh_token: str | None = None
+    admin_api_url: str | None = None
 
 
 def _strip(url: str) -> str:
@@ -121,7 +125,8 @@ def load_session() -> Session:
     base_url = _strip(os.environ.get("JOLTIO_URL") or stored.get("baseUrl") or DEFAULT_BASE_URL)
     api_url = _strip(os.environ.get("JOLTIO_API_URL") or stored.get("apiUrl") or base_url)
     token = os.environ.get("JOLTIO_TOKEN") or stored.get("token")
-    return Session(token=token, base_url=base_url, api_url=api_url, workspace=stored.get("workspace"), refresh_token=stored.get("refreshToken"))
+    admin = os.environ.get("JOLTIO_ADMIN_API_URL") or stored.get("adminApiUrl")
+    return Session(token=token, base_url=base_url, api_url=api_url, workspace=stored.get("workspace"), refresh_token=stored.get("refreshToken"), admin_api_url=_strip(admin) if admin else None)
 
 
 def credential_headers(*, api_key: str | None = None, token: str | None = None, session_token: str | None = None) -> dict[str, str]:
@@ -165,6 +170,14 @@ def effective_workspace() -> str | None:
     return _workspace_override.get() or os.environ.get("JOLTIO_WORKSPACE") or load_session().workspace
 
 
+def admin_api_url(session: Session | None = None) -> str:
+    """Host de las rutas de administración. Precedencia: JOLTIO_ADMIN_API_URL > `adminApiUrl` de la sesión > el host de administración de producción cuando el API es el de producción > el propio `api_url` (entornos locales y de prueba, donde un mismo servidor atiende las dos audiencias)."""
+    session = session or load_session()
+    if session.admin_api_url:
+        return session.admin_api_url
+    return DEFAULT_ADMIN_API_URL if session.api_url in _MEMBER_API_URLS else session.api_url
+
+
 def data_api_url() -> str:
     return _strip(os.environ.get("JOLTIO_DATA_API_URL") or DEFAULT_DATA_API_URL)
 
@@ -203,7 +216,7 @@ def store_session(*, token: str, base_url: str, api_url: str, refresh_token: str
     except (OSError, json.JSONDecodeError):
         previous = {}
     path.write_text(
-        json.dumps({"token": token, "baseUrl": _strip(base_url), "apiUrl": _strip(api_url), "refreshToken": refresh_token, "workspace": previous.get("workspace")}),
+        json.dumps({"token": token, "baseUrl": _strip(base_url), "apiUrl": _strip(api_url), "refreshToken": refresh_token, "workspace": previous.get("workspace"), **({"adminApiUrl": previous["adminApiUrl"]} if previous.get("adminApiUrl") else {})}),
         encoding="utf-8",
     )
     path.chmod(0o600)

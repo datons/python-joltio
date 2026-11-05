@@ -12,8 +12,11 @@ import httpx
 import typer
 
 from joltio import Client
-from joltio.config import credential_headers
+from joltio.config import admin_api_url, credential_headers
 from joltio_toolkit.config import effective_workspace, load_session
+
+
+ADMIN_PREFIXES = ("/api/admin/", "/v1/admin/")
 
 
 class CliError(RuntimeError):
@@ -34,10 +37,12 @@ def request(
     workspace = effective_workspace()
     if workspace and workspace_header:
         headers["X-Joltio-Workspace"] = workspace
-    url = f"{session.api_url}{path}"
+    # Las rutas de administración se sirven en su propio host; el resto, en el API de miembros.
+    api_url = admin_api_url(session) if path.startswith(ADMIN_PREFIXES) else session.api_url
+    url = f"{api_url}{path}"
     params = {k: v for k, v in (query or {}).items() if v is not None}
     try:
-        with Client(base_url=session.api_url, _allow_anonymous=True, _session_token=session.token) as client:
+        with Client(base_url=api_url, _allow_anonymous=True, _session_token=session.token) as client:
             response = client.request_response(method.upper(), path, params=params or None, json=body if body is not None else None, headers=headers)
     except httpx.HTTPError as exc:
         raise CliError(f"No se pudo contactar con {url}: {exc}") from exc
