@@ -57,6 +57,7 @@ def provision(
     until: str | None = typer.Option(None, help="Fecha final YYYY-MM-DD."),
     domain_join: str | None = typer.Option(None, "--domain-join"),
     seat_overflow: bool | None = typer.Option(None, "--seat-overflow/--no-seat-overflow", help="Asientos sin límite: las altas reciben asiento aunque se superen los contratados."),
+    seat_overflow_auto: bool = typer.Option(False, "--seat-overflow-auto", help="Vuelve al límite automático según los dominios corporativos del workspace."),
     lifecycle: str | None = typer.Option(None, "--lifecycle", help="Estado comercial del workspace: fija la política de acceso de soporte y el domain_join por defecto. La API indica los valores válidos."),
     owner_seats: bool = typer.Option(False, "--owner-seats"),
     release_owner: bool = typer.Option(False, "--release-owner", help="Retira al --owner como miembro del workspace; exige que ya haya otro owner."),
@@ -75,7 +76,12 @@ def provision(
             if product == "data" and data_plan_version is not None:
                 entry["plan_version"] = data_plan_version
             products.append(entry)
-    result = request("POST", "/api/admin/workspaces/provision", body={"name": name, "domains": domain, "owner_email": owner, "products": products, "until": until, "domain_join": domain_join, "seat_overflow": seat_overflow, "lifecycle": lifecycle, "owner_seats": True if owner_seats else None, "release_owner": release_owner, "dry_run": dry_run}, workspace_header=False)
+    if seat_overflow_auto and seat_overflow is not None:
+        raise typer.BadParameter("--seat-overflow-auto no se combina con --seat-overflow ni --no-seat-overflow.")
+    body = {"name": name, "domains": domain, "owner_email": owner, "products": products, "until": until, "domain_join": domain_join, "lifecycle": lifecycle, "owner_seats": True if owner_seats else None, "release_owner": release_owner, "dry_run": dry_run}
+    if seat_overflow_auto or seat_overflow is not None:
+        body["seat_overflow"] = None if seat_overflow_auto else seat_overflow
+    result = request("POST", "/api/admin/workspaces/provision", body=body, workspace_header=False)
     if json_output:
         typer.echo(json.dumps(result, ensure_ascii=False, indent=2))
         return

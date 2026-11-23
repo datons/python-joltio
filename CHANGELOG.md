@@ -2,6 +2,11 @@
 
 ## Sin publicar
 
+## 0.4.3
+
+- **`data.query` ya no falla con agregados como `count()`.** El JSON de ClickHouse envía `UInt64`, `Int64` y los enteros de 128 y 256 bits como texto («96»), y el cliente fallaba con `TypeError: unexpected value while building Series of type Int64`. Ahora se leen como columnas enteras en Polars y en pandas (`Int64` anulable cuando hay nulos), también dentro de `Nullable(...)` y `LowCardinality(...)`. `Decimal` llega como `Float64` y `Bool` como booleano, que antes también fallaban en Polars.
+- `joltio admin workspace provision --seat-overflow-auto` devuelve el límite de asientos al cálculo automático según los dominios corporativos del workspace.
+
 ## 0.4.2
 
 - Primera versión publicada en PyPI desde git.datons.com; incluye los cambios de la 0.4.1, que no llegó a publicarse.

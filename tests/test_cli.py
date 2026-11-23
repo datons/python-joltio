@@ -369,7 +369,7 @@ def test_admin_workspace_provision_flags_and_json(cli: tuple[typer.Typer, _Captu
     result = runner.invoke(app, ["admin", "workspace", "provision", "--name", "Energía Ejemplo", "--domain", "ejemplo.es", "--owner", "owner@datons.com", "--data", "pilot", "--data-seats", "5", "--pulse", "starter", "--pulse-seats", "5", "--fleet", "starter", "--fleet-seats", "5", "--until", "2026-12-31", "--domain-join", "auto", "--lifecycle", "design_partner", "--dry-run", "--json"])
     assert result.exit_code == 0, result.stdout
     assert capture.calls[-1]["url"] == "https://api.x/api/admin/workspaces/provision"
-    assert capture.calls[-1]["json"] == {"name": "Energía Ejemplo", "domains": ["ejemplo.es"], "owner_email": "owner@datons.com", "products": [{"product": "data", "plan": "pilot", "seats": 5}, {"product": "pulse", "plan": "starter", "seats": 5}, {"product": "fleet", "plan": "starter", "seats": 5}], "until": "2026-12-31", "domain_join": "auto", "seat_overflow": None, "lifecycle": "design_partner", "owner_seats": None, "release_owner": False, "dry_run": True}
+    assert capture.calls[-1]["json"] == {"name": "Energía Ejemplo", "domains": ["ejemplo.es"], "owner_email": "owner@datons.com", "products": [{"product": "data", "plan": "pilot", "seats": 5}, {"product": "pulse", "plan": "starter", "seats": 5}, {"product": "fleet", "plan": "starter", "seats": 5}], "until": "2026-12-31", "domain_join": "auto", "lifecycle": "design_partner", "owner_seats": None, "release_owner": False, "dry_run": True}
 
 
 def test_admin_workspace_provision_release_owner_flag(cli: tuple[typer.Typer, _Capture]) -> None:
@@ -386,6 +386,9 @@ def test_admin_workspace_provision_seat_overflow_flag(cli: tuple[typer.Typer, _C
     assert capture.calls[-1]["json"]["seat_overflow"] is True
     assert runner.invoke(app, [*base, "--no-seat-overflow"]).exit_code == 0
     assert capture.calls[-1]["json"]["seat_overflow"] is False
+    assert runner.invoke(app, [*base, "--seat-overflow-auto"]).exit_code == 0
+    assert capture.calls[-1]["json"]["seat_overflow"] is None
+    assert runner.invoke(app, [*base, "--seat-overflow-auto", "--seat-overflow"]).exit_code != 0
 
 
 def _admin_host_session(monkeypatch: pytest.MonkeyPatch, api_url: str, **extra: Any) -> _Capture:

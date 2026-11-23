@@ -31,6 +31,54 @@ Backend = Literal["polars", "pandas"]
 
 
 _TIME_ZONE = re.compile(r"DateTime(?:64)?\((?:\s*\d+\s*,)?\s*'([^']+)'\s*\)")
+_WRAPPER = re.compile(r"^(?:Nullable|LowCardinality)\((.*)\)$")
+_INTEGER = re.compile(r"^U?Int(8|16|32|64|128|256)$")
+_TEXT = re.compile(r"^(?:String|FixedString\(\d+\)|UUID|IPv[46]|Enum(?:8|16)?\(.*\))$")
+
+ColumnKind = Literal["datetime", "date", "integer", "wide_integer", "float", "bool", "text", "other"]
+
+
+def _column_kind(column_type: str) -> ColumnKind:
+    """Clase de una columna a partir de su tipo de ClickHouse, sin envoltorios Nullable(...) ni LowCardinality(...)."""
+    base = column_type.strip()
+    while match := _WRAPPER.match(base):
+        base = match.group(1).strip()
+    if base.startswith("DateTime"):
+        return "datetime"
+    if base.startswith("Date"):
+        return "date"
+    integer = _INTEGER.match(base)
+    if integer:
+        return "integer" if int(integer.group(1)) <= 64 else "wide_integer"
+    if base.startswith(("Float", "Decimal")):
+        return "float"
+    if base == "Bool":
+        return "bool"
+    if _TEXT.match(base):
+        return "text"
+    return "other"
+
+
+def _polars_column(name: str, column_type: str, values: list[Any]) -> pl.Series:
+    kind = _column_kind(column_type)
+    if kind in ("integer", "wide_integer", "float"):
+        # El JSON de ClickHouse envía Int64, UInt64, (U)Int128 y (U)Int256 como texto («96») y el resto como número: se leen como texto y se convierten, y un valor fuera de rango falla en vez de quedar nulo.
+        text = pl.Series(name, [None if v is None else str(v) for v in values], dtype=pl.Utf8)
+        if kind == "float":
+            return text.cast(pl.Float64)
+        if kind == "wide_integer" and hasattr(pl, "Int128"):
+            return text.cast(pl.Int128)
+        return text.cast(pl.Int64)
+    if kind == "datetime":
+        # Se lee como texto y se convierte con la zona del tipo: con pl.Datetime sin zona, «23:45+02:00» acababa en 21:45 UTC sin zona.
+        return pl.Series(name, values, dtype=pl.Utf8).str.to_datetime(time_unit="ms", time_zone=_time_zone(column_type))
+    if kind == "date":
+        return pl.Series(name, values, dtype=pl.Utf8).str.to_date()
+    if kind == "bool":
+        return pl.Series(name, values, dtype=pl.Boolean)
+    if kind == "text":
+        return pl.Series(name, values, dtype=pl.Utf8)
+    return pl.Series(name, values)
 
 
 def _time_zone(column_type: str) -> str | None:
@@ -216,30 +264,7 @@ class EsiosDataManager:
     @staticmethod
     def _to_polars(result: QueryResult) -> pl.DataFrame:
         """Convert a QueryResult to a Polars DataFrame."""
-        col_names = [c.name for c in result.columns]
-        schema: dict[str, pl.DataType] = {}
-        datetimes: dict[str, str | None] = {}
-
-        for col in result.columns:
-            col_type = col.type.lower()
-            if "datetime" in col_type:
-                # Se lee como texto y se convierte abajo con la zona del tipo: con pl.Datetime sin zona, «23:45+02:00» acababa en 21:45 UTC sin zona.
-                schema[col.name] = pl.Utf8
-                datetimes[col.name] = _time_zone(col.type)
-            elif "date" in col_type:
-                schema[col.name] = pl.Date
-            elif "float" in col_type:
-                schema[col.name] = pl.Float64
-            elif "int" in col_type or "uint" in col_type:
-                schema[col.name] = pl.Int64
-            else:
-                schema[col.name] = pl.Utf8
-
-        data = dict(zip(col_names, zip(*result.rows))) if result.rows else {c: [] for c in col_names}
-        df = pl.DataFrame(data, schema=schema)
-        if datetimes:
-            df = df.with_columns(pl.col(name).str.to_datetime(time_unit="ms", time_zone=zone) for name, zone in datetimes.items())
-        return df
+        return pl.DataFrame([_polars_column(col.name, col.type, [row[i] for row in result.rows]) for i, col in enumerate(result.columns)])
 
     @staticmethod
     def _to_pandas(result: QueryResult) -> Any:
@@ -256,8 +281,14 @@ class EsiosDataManager:
         df = pd.DataFrame(result.rows, columns=col_names)
 
         for col in result.columns:
-            col_type = col.type.lower()
-            if "datetime" in col_type:
+            kind = _column_kind(col.type)
+            if kind in ("integer", "wide_integer"):
+                # Int64/UInt64 y mayores llegan como texto en el JSON de ClickHouse; con nulos se usa el entero anulable de pandas para no pasar a float.
+                values = pd.to_numeric(df[col.name])
+                df[col.name] = values.astype("Int64") if kind == "integer" and values.isna().any() else values
+            elif kind == "float":
+                df[col.name] = pd.to_numeric(df[col.name]).astype("float64")
+            elif kind == "datetime":
                 zone = _time_zone(col.type)
                 values = df[col.name]
                 if zone is None:
@@ -267,7 +298,7 @@ class EsiosDataManager:
                     df[col.name] = pd.to_datetime(values, utc=True).dt.tz_convert(zone)
                 else:
                     df[col.name] = pd.to_datetime(values).dt.tz_localize(zone)
-            elif "date" in col_type:
+            elif kind == "date":
                 df[col.name] = pd.to_datetime(df[col.name])
 
         return df
